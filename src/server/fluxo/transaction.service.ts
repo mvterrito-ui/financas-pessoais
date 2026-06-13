@@ -30,6 +30,7 @@ export const transactionService = {
         tenant_id: ctx.tenantId,
         tipo: values.tipo,
         valor: p.valor,
+        moeda: values.moeda,
         data: p.data,
         descricao: values.descricao ?? null,
         recorrente: false, // parcela não é gasto fixo recorrente

@@ -7,6 +7,7 @@ import {
   addMeses,
   gerarParcelas,
   porCategoria,
+  valorEmBRL,
   type Transaction,
   type Category,
 } from './fluxo.calc'
@@ -30,6 +31,27 @@ describe('fluxo.calc', () => {
 
   it('formata em real', () => {
     expect(formatBRL(1234.5)).toContain('1.234,50')
+  })
+})
+
+describe('moeda / conversão', () => {
+  const rates = { USD: 5, EUR: 6 }
+
+  it('valorEmBRL converte pela cotação (BRL = 1)', () => {
+    expect(valorEmBRL(10, 'BRL', rates)).toBe(10)
+    expect(valorEmBRL(10, 'USD', rates)).toBe(50)
+    expect(valorEmBRL(10, 'EUR', rates)).toBe(60)
+    expect(valorEmBRL(10, 'EUR')).toBe(10) // sem rates = valor cru
+    expect(valorEmBRL(10, undefined, rates)).toBe(10) // sem moeda = BRL
+  })
+
+  it('totalEntradas soma convertendo as moedas', () => {
+    const txs = [
+      { tipo: 'entrada', valor: 100, moeda: 'BRL' },
+      { tipo: 'entrada', valor: 100, moeda: 'EUR' }, // 600
+    ] as Transaction[]
+    expect(totalEntradas(txs, rates)).toBe(700)
+    expect(totalEntradas(txs)).toBe(200) // sem rates: soma cru
   })
 })
 

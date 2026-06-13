@@ -108,9 +108,9 @@ export default function DashboardClient() {
   }, [mes, api])
 
   // ---- Cálculos ----
-  const entradas = totalEntradas(txs)
-  const saidas = totalSaidas(txs)
-  const saldoMes = saldo(txs)
+  const entradas = totalEntradas(txs, rates)
+  const saidas = totalSaidas(txs, rates)
+  const saldoMes = saldo(txs, rates)
 
   const moedaDoLugar = useMemo(
     () => Object.fromEntries(places.map((p) => [p.id, p.moeda])) as Record<string, Moeda>,

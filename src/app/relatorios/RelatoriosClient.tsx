@@ -21,6 +21,7 @@ import {
   type Transaction,
   type CategoriaResumo,
 } from '@/server/fluxo/fluxo.calc'
+import { useRates } from '@/lib/useRates'
 
 // Uma quebra (lista de categorias com barra + %).
 function Quebra({
@@ -71,6 +72,7 @@ function Quebra({
 
 export default function RelatoriosClient() {
   const router = useRouter()
+  const rates = useRates()
   const [txs, setTxs] = useState<Transaction[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [erro, setErro] = useState<string | null>(null)
@@ -114,9 +116,9 @@ export default function RelatoriosClient() {
     carregar()
   }, [carregar])
 
-  const gastos = useMemo(() => porCategoria(txs, categories, 'saida'), [txs, categories])
-  const entradas = useMemo(() => porCategoria(txs, categories, 'entrada'), [txs, categories])
-  const resultado = saldo(txs)
+  const gastos = useMemo(() => porCategoria(txs, categories, 'saida', rates), [txs, categories, rates])
+  const entradas = useMemo(() => porCategoria(txs, categories, 'entrada', rates), [txs, categories, rates])
+  const resultado = saldo(txs, rates)
 
   return (
     <PageLayout
@@ -148,8 +150,8 @@ export default function RelatoriosClient() {
 
       {/* KPIs */}
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <StatCard label="Entradas" value={formatBRL(totalEntradas(txs))} icon={ArrowUpRight} accent="success" />
-        <StatCard label="Saídas" value={formatBRL(totalSaidas(txs))} icon={ArrowDownRight} accent="destructive" />
+        <StatCard label="Entradas" value={formatBRL(totalEntradas(txs, rates))} icon={ArrowUpRight} accent="success" />
+        <StatCard label="Saídas" value={formatBRL(totalSaidas(txs, rates))} icon={ArrowDownRight} accent="destructive" />
         <StatCard
           label="Saldo"
           value={formatBRL(resultado)}

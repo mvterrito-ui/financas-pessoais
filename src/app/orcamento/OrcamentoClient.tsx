@@ -13,7 +13,8 @@ import { Label } from '@/components/ui/label'
 import { MonthPicker } from '@/components/ui/month-picker'
 import { usePromptDialog } from '@/components/ui/prompt'
 import { hojeISO, fimDoMes, rotuloMes } from '@/lib/utils'
-import { formatBRL } from '@/server/fluxo/fluxo.calc'
+import { formatBRL, valorEmBRL, type Moeda } from '@/server/fluxo/fluxo.calc'
+import { useRates } from '@/lib/useRates'
 import {
   alocar,
   somaPercentual,
@@ -23,10 +24,14 @@ import {
 export default function OrcamentoClient() {
   const router = useRouter()
   const ask = usePromptDialog()
+  const rates = useRates()
   const [buckets, setBuckets] = useState<BudgetBucket[]>([])
-  const [renda, setRenda] = useState(0)
+  const [entradasMes, setEntradasMes] = useState<{ valor: number | string; moeda?: Moeda }[]>([])
   const [mes, setMes] = useState(hojeISO().slice(0, 7)) // 'AAAA-MM'
   const [erro, setErro] = useState<string | null>(null)
+
+  // Renda do mês JÁ convertida pra real (entradas em € usam cotação ao vivo).
+  const renda = entradasMes.reduce((s, t) => s + valorEmBRL(t.valor, t.moeda, rates), 0)
 
   const api = useCallback(
     async (url: string, init?: RequestInit) => {
@@ -55,12 +60,7 @@ export default function OrcamentoClient() {
       const entradas = await api(
         `/api/transaction?de=${mes}-01&ate=${fimDoMes(mes)}&tipo=entrada`,
       )
-      setRenda(
-        (entradas as { valor: number | string }[]).reduce(
-          (s, t) => s + Number(t.valor),
-          0,
-        ),
-      )
+      setEntradasMes(entradas as { valor: number | string; moeda?: Moeda }[])
     } catch (e) {
       setErro((e as Error).message)
     }
