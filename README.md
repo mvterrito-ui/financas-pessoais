@@ -4,7 +4,7 @@ App **multi-tenant** de finanças pessoais: fluxo de caixa, orçamento, patrimô
 
 Construído como projeto de estudo de **backend** (por alguém que vem do **QA/front-end**), com foco em arquitetura em camadas, validação ponta a ponta e segurança por **Row Level Security**.
 
-> 🧪 Rode `npm run seed:demo` pra criar um usuário **"João da Silva"** com dados fictícios e explorar o app sem precisar cadastrar nada à mão.
+> 🔐 **Acesso fechado:** a instância publicada **não permite criar novos usuários** (signup desligado no Supabase) — é de uso pessoal. Para explorar o app rodando localmente, use `npm run seed:demo`, que cria o usuário **"João da Silva"** (`joao.demo@gmail.com` / `demo123456`) com dados fictícios — via API admin, funciona mesmo com o cadastro bloqueado.
 
 ## ✨ Funcionalidades
 
@@ -36,7 +36,8 @@ migration (SQL + RLS)  →  schema (Zod)  →  repo (única camada de DB)
 
 ## 🔒 Multi-tenancy & segurança
 
-- Cada usuário = 1 **tenant**, provisionado automaticamente no cadastro (gatilho `handle_new_user`).
+- Cada usuário = 1 **tenant**, provisionado automaticamente quando a conta é criada (gatilho `handle_new_user`).
+- **Cadastro fechado:** novos signups estão **desativados** na instância publicada — contas são criadas só pelo dono (painel/admin). O suporte a multi-tenant é da arquitetura; o uso é pessoal.
 - Toda tabela tem **RLS ligado** + políticas `tenant_id = current_tenant_id()`. Usuário só enxerga o que é seu; deslogado não acessa nada.
 - A chave `service_role` vive **só no servidor** (nunca no bundle do cliente, nunca no git).
 
@@ -53,10 +54,11 @@ npm install
 # 3. migrations (no SQL Editor do Supabase, ou via psql)
 #    aplique os arquivos em supabase/migrations/ em ordem
 
-# 4. dados de demonstração (opcional)
+# 4. usuário + dados de demonstração (como o cadastro é fechado, é assim
+#    que se cria o login pra testar): joao.demo@gmail.com / demo123456
 npm run seed:demo
 
-# 5. sobe o app
+# 5. sobe o app e entre com o login do demo
 npm run dev
 ```
 
@@ -67,7 +69,7 @@ npm run dev
 | `npm run dev` | sobe em modo desenvolvimento |
 | `npm test` | roda os testes (Vitest) |
 | `npm run build` | build de produção |
-| `npm run seed:demo` | cria o usuário demo com dados fictícios |
+| `npm run seed:demo` | cria o usuário demo (login + dados fictícios) via admin |
 | `npm run backup` | dump do banco (`pg_dump`) |
 
 ---
