@@ -15,6 +15,22 @@ Construído como projeto de estudo de **backend** (por alguém que vem do **QA/f
 - **🏢 FIIs** — carteira com cotação ao vivo (Yahoo Finance, sem token).
 - **🏦 Renda Fixa** e **🪙 Cripto** — posições, rendimento e detalhamento.
 
+## 📸 Telas
+
+> Capturas com dados **fictícios** (usuário de demonstração).
+
+| Visão geral | Fluxo de Caixa |
+|---|---|
+| ![Dashboard](docs/screenshots/visao-geral.png) | ![Fluxo de Caixa](docs/screenshots/fluxo.png) |
+
+| Relatórios (gastos por categoria) | Projeção |
+|---|---|
+| ![Relatórios](docs/screenshots/relatorios.png) | ![Projeção](docs/screenshots/projecao.png) |
+
+| Patrimônio | Orçamento |
+|---|---|
+| ![Patrimônio](docs/screenshots/patrimonio.png) | ![Orçamento](docs/screenshots/orcamento.png) |
+
 ## 🛠️ Stack
 
 - **Next.js 16** (App Router) + **React 19** + **TypeScript** — monolito
