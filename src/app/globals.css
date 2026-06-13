@@ -1,26 +1,66 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* =====================================================================
+   Design system — paleta Esmeralda + Grafite (tema claro, clean).
+   Cada token vira utilitário do Tailwind: bg-primary, text-muted-foreground,
+   border-border, bg-sidebar, etc. (e aceitam opacidade: bg-primary/10).
+   ===================================================================== */
+@theme {
+  --radius: 0.75rem;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: #f5f8f7; /* off-white com leve tom verde */
+  --color-foreground: #0f172a; /* grafite no texto */
+
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+
+  --color-primary: #059669; /* esmeralda */
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #ecfdf5;
+  --color-secondary-foreground: #065f46;
+
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+
+  --color-accent: #ecfdf5;
+  --color-accent-foreground: #065f46;
+
+  --color-destructive: #dc2626; /* vermelho saída */
+  --color-destructive-foreground: #ffffff;
+
+  --color-success: #059669; /* verde entrada */
+  --color-warning: #f59e0b;
+
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #059669;
+
+  /* Sidebar sempre escura (grafite esverdeado) */
+  --color-sidebar: #0b1f17;
+  --color-sidebar-foreground: #c9d6cf;
+  --color-sidebar-accent: #34d399;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --animate-fade-in: fade-in 0.25s ease-out;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
 }
