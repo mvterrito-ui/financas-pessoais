@@ -45,6 +45,41 @@ export function saldo(txs: Transaction[]): number {
   return totalEntradas(txs) - totalSaidas(txs)
 }
 
+export type CategoriaResumo = {
+  id: string | null
+  name: string
+  total: number
+  pct: number // fatia do total daquele tipo (0-100)
+}
+
+// Agrupa os lançamentos de um tipo (entrada/saida) por categoria, com o total
+// e a fatia (%) de cada uma. Ordena do maior pro menor. Lançamentos sem
+// categoria caem num grupo "Sem categoria".
+export function porCategoria(
+  txs: Transaction[],
+  categories: Category[],
+  tipo: 'entrada' | 'saida',
+): CategoriaResumo[] {
+  const doTipo = txs.filter((t) => t.tipo === tipo)
+  const total = doTipo.reduce((s, t) => s + Number(t.valor), 0)
+  const nome = new Map(categories.map((c) => [c.id, c.name]))
+
+  const porId = new Map<string | null, number>()
+  for (const t of doTipo) {
+    const k = t.category_id ?? null
+    porId.set(k, (porId.get(k) ?? 0) + Number(t.valor))
+  }
+
+  return [...porId.entries()]
+    .map(([id, soma]) => ({
+      id,
+      name: id ? nome.get(id) ?? 'Sem categoria' : 'Sem categoria',
+      total: soma,
+      pct: total > 0 ? (soma / total) * 100 : 0,
+    }))
+    .sort((a, b) => b.total - a.total)
+}
+
 export function formatBRL(v: number): string {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }

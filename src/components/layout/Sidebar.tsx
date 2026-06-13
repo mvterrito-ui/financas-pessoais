@@ -12,6 +12,7 @@ import {
   Building2,
   Landmark,
   Sparkles,
+  BarChart3,
   LogOut,
   type LucideIcon,
 } from 'lucide-react'
@@ -40,6 +41,7 @@ const secoes: Secao[] = [
     itens: [
       { to: '/fluxo', label: 'Fluxo de Caixa', icon: Wallet, emoji: '💸' },
       { to: '/orcamento', label: 'Orçamento', icon: PieChart, emoji: '🎯' },
+      { to: '/relatorios', label: 'Relatórios', icon: BarChart3, emoji: '📊' },
     ],
   },
   {

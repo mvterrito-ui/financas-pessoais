@@ -6,7 +6,9 @@ import {
   formatBRL,
   addMeses,
   gerarParcelas,
+  porCategoria,
   type Transaction,
+  type Category,
 } from './fluxo.calc'
 
 const txs = [
@@ -28,6 +30,33 @@ describe('fluxo.calc', () => {
 
   it('formata em real', () => {
     expect(formatBRL(1234.5)).toContain('1.234,50')
+  })
+})
+
+describe('porCategoria', () => {
+  const cats = [
+    { id: 'c1', name: 'Mercado', tipo: 'saida' },
+    { id: 'c2', name: 'Aluguel', tipo: 'saida' },
+  ] as Category[]
+  const txs = [
+    { tipo: 'saida', valor: 300, category_id: 'c1' },
+    { tipo: 'saida', valor: 100, category_id: 'c1' },
+    { tipo: 'saida', valor: 600, category_id: 'c2' },
+    { tipo: 'saida', valor: 50, category_id: null }, // sem categoria
+    { tipo: 'entrada', valor: 5000, category_id: null }, // ignorado (outro tipo)
+  ] as Transaction[]
+
+  it('agrupa saídas por categoria, com % do total, ordenado desc', () => {
+    const r = porCategoria(txs, cats, 'saida')
+    expect(r.map((x) => x.name)).toEqual(['Aluguel', 'Mercado', 'Sem categoria'])
+    expect(r[0]).toMatchObject({ name: 'Aluguel', total: 600 })
+    expect(r[0].pct).toBeCloseTo(57.1, 1) // 600 / 1050
+    expect(r[1]).toMatchObject({ name: 'Mercado', total: 400 }) // 300 + 100
+    expect(r[2]).toMatchObject({ name: 'Sem categoria', total: 50 })
+  })
+
+  it('lista vazia => []', () => {
+    expect(porCategoria([], cats, 'saida')).toEqual([])
   })
 })
 
