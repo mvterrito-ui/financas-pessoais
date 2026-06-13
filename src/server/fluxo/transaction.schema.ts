@@ -6,6 +6,7 @@ import { z } from 'zod'
 const transactionBase = z.object({
   tipo: z.enum(['entrada', 'saida']),
   valor: z.number().positive('O valor deve ser maior que zero'),
+  moeda: z.enum(['BRL', 'USD', 'EUR']).optional().default('BRL'),
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use o formato AAAA-MM-DD'),
   descricao: z.string().trim().max(200).optional().nullable(),
   recorrente: z.boolean().optional().default(false),

@@ -2,10 +2,13 @@
 // Por serem puros, rodam igual no back e no front -> dá pra mostrar
 // preview no front sem pedir nada pro servidor.
 
+export type Moeda = 'BRL' | 'USD' | 'EUR'
+
 export type Transaction = {
   id: string
   tipo: 'entrada' | 'saida'
-  valor: number | string // numeric do Postgres pode chegar como string
+  valor: number | string // numeric do Postgres pode chegar como string (na moeda nativa)
+  moeda?: Moeda // moeda do lançamento (default BRL)
   data: string
   descricao: string | null
   recorrente: boolean
@@ -14,6 +17,23 @@ export type Transaction = {
   parcela_grupo: string | null // une as parcelas da mesma compra (null = à vista)
   parcela_num: number | null // qual parcela (1, 2, 3...)
   parcela_total: number | null // total de parcelas (ex: 12)
+}
+
+// Cotações ao vivo em relação ao real (BRL sempre = 1).
+export type Rates = { USD: number; EUR: number }
+
+// Valor de um lançamento JÁ em real. Sem rates (ou moeda BRL) = valor cru.
+// Com rates e moeda estrangeira = convertido pela cotação ao vivo.
+export function valorEmBRL(
+  valor: number | string,
+  moeda?: Moeda | null,
+  rates?: Rates,
+): number {
+  const v = Number(valor)
+  if (!rates || !moeda || moeda === 'BRL') return v
+  if (moeda === 'USD') return v * rates.USD
+  if (moeda === 'EUR') return v * rates.EUR
+  return v
 }
 
 export type Account = {
@@ -29,20 +49,20 @@ export type Category = {
   tipo: 'entrada' | 'saida'
 }
 
-export function totalEntradas(txs: Transaction[]): number {
+export function totalEntradas(txs: Transaction[], rates?: Rates): number {
   return txs
     .filter((t) => t.tipo === 'entrada')
-    .reduce((soma, t) => soma + Number(t.valor), 0)
+    .reduce((soma, t) => soma + valorEmBRL(t.valor, t.moeda, rates), 0)
 }
 
-export function totalSaidas(txs: Transaction[]): number {
+export function totalSaidas(txs: Transaction[], rates?: Rates): number {
   return txs
     .filter((t) => t.tipo === 'saida')
-    .reduce((soma, t) => soma + Number(t.valor), 0)
+    .reduce((soma, t) => soma + valorEmBRL(t.valor, t.moeda, rates), 0)
 }
 
-export function saldo(txs: Transaction[]): number {
-  return totalEntradas(txs) - totalSaidas(txs)
+export function saldo(txs: Transaction[], rates?: Rates): number {
+  return totalEntradas(txs, rates) - totalSaidas(txs, rates)
 }
 
 export type CategoriaResumo = {
@@ -59,15 +79,16 @@ export function porCategoria(
   txs: Transaction[],
   categories: Category[],
   tipo: 'entrada' | 'saida',
+  rates?: Rates,
 ): CategoriaResumo[] {
   const doTipo = txs.filter((t) => t.tipo === tipo)
-  const total = doTipo.reduce((s, t) => s + Number(t.valor), 0)
+  const total = doTipo.reduce((s, t) => s + valorEmBRL(t.valor, t.moeda, rates), 0)
   const nome = new Map(categories.map((c) => [c.id, c.name]))
 
   const porId = new Map<string | null, number>()
   for (const t of doTipo) {
     const k = t.category_id ?? null
-    porId.set(k, (porId.get(k) ?? 0) + Number(t.valor))
+    porId.set(k, (porId.get(k) ?? 0) + valorEmBRL(t.valor, t.moeda, rates))
   }
 
   return [...porId.entries()]
@@ -82,6 +103,11 @@ export function porCategoria(
 
 export function formatBRL(v: number): string {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+// Formata na moeda nativa do lançamento (R$, US$ ou €).
+export function formatMoeda(v: number, moeda: Moeda = 'BRL'): string {
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: moeda })
 }
 
 // ---- Parcelamento -----------------------------------------------------

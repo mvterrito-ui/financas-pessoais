@@ -26,20 +26,25 @@ import { MonthPicker } from '@/components/ui/month-picker'
 import { hojeISO, formatData, fimDoMes, rotuloMes } from '@/lib/utils'
 import {
   formatBRL,
+  formatMoeda,
+  valorEmBRL,
   gerarParcelas,
   saldo,
   totalEntradas,
   totalSaidas,
   type Account,
   type Category,
+  type Moeda,
   type Transaction,
 } from '@/server/fluxo/fluxo.calc'
 import { parseStatement, type ParsedItem } from '@/server/fluxo/statement'
 import { usePromptDialog } from '@/components/ui/prompt'
+import { useRates } from '@/lib/useRates'
 
 const vazio = {
   tipo: 'saida' as 'entrada' | 'saida',
   valor: '',
+  moeda: 'BRL' as Moeda,
   data: hojeISO(),
   descricao: '',
   category_id: '',
@@ -52,6 +57,7 @@ const vazio = {
 export default function FluxoClient() {
   const router = useRouter()
   const ask = usePromptDialog()
+  const rates = useRates()
 
   const [txs, setTxs] = useState<Transaction[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -139,6 +145,7 @@ export default function FluxoClient() {
     setF({
       tipo: t.tipo,
       valor: String(t.valor),
+      moeda: t.moeda ?? 'BRL',
       data: t.data.slice(0, 10),
       descricao: t.descricao ?? '',
       category_id: t.category_id ?? '',
@@ -163,6 +170,7 @@ export default function FluxoClient() {
           body: JSON.stringify({
             tipo: f.tipo,
             valor: Number(f.valor),
+            moeda: f.moeda,
             data: f.data,
             descricao: f.descricao || null,
             category_id: f.category_id || null,
@@ -178,6 +186,7 @@ export default function FluxoClient() {
           body: JSON.stringify({
             tipo: f.tipo,
             valor: Number(f.valor),
+            moeda: f.moeda,
             data: f.data,
             descricao: f.descricao || null,
             category_id: f.category_id || null,
@@ -306,7 +315,7 @@ export default function FluxoClient() {
     }
   }, [f.parcelado, f.valor, f.parcelas, f.data])
 
-  const resultado = saldo(txs)
+  const resultado = saldo(txs, rates)
   const temFiltro = Boolean(fMes || fTipo)
 
   return (
@@ -374,13 +383,13 @@ export default function FluxoClient() {
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
         <StatCard
           label="Entradas"
-          value={formatBRL(totalEntradas(txs))}
+          value={formatBRL(totalEntradas(txs, rates))}
           icon={ArrowUpRight}
           accent="success"
         />
         <StatCard
           label="Saídas"
-          value={formatBRL(totalSaidas(txs))}
+          value={formatBRL(totalSaidas(txs, rates))}
           icon={ArrowDownRight}
           accent="destructive"
         />
@@ -473,7 +482,15 @@ export default function FluxoClient() {
                   <td
                     className={`px-4 py-3 text-right font-semibold tabular-nums ${t.tipo === 'entrada' ? 'text-emerald-600' : 'text-destructive'}`}
                   >
-                    {t.tipo === 'entrada' ? '+' : '−'} {formatBRL(Number(t.valor))}
+                    <div>
+                      {t.tipo === 'entrada' ? '+' : '−'}{' '}
+                      {formatMoeda(Number(t.valor), t.moeda ?? 'BRL')}
+                    </div>
+                    {t.moeda && t.moeda !== 'BRL' && (
+                      <div className="text-[10px] font-normal text-muted-foreground">
+                        ≈ {formatBRL(valorEmBRL(t.valor, t.moeda, rates))}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
@@ -538,18 +555,29 @@ export default function FluxoClient() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="valor">Valor (R$) *</Label>
-              <Input
-                id="valor"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0,00"
-                value={f.valor}
-                onChange={(e) => set('valor', e.target.value)}
-                required
-                autoFocus
-              />
+              <Label htmlFor="valor">Valor *</Label>
+              <div className="flex gap-1">
+                <Select
+                  className="w-20"
+                  value={f.moeda}
+                  onChange={(e) => set('moeda', e.target.value as Moeda)}
+                >
+                  <option value="BRL">R$</option>
+                  <option value="USD">US$</option>
+                  <option value="EUR">€</option>
+                </Select>
+                <Input
+                  id="valor"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0,00"
+                  value={f.valor}
+                  onChange={(e) => set('valor', e.target.value)}
+                  required
+                  autoFocus
+                />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="data">Data *</Label>
@@ -562,6 +590,14 @@ export default function FluxoClient() {
               />
             </div>
           </div>
+
+          {/* Preview da conversão pra real (moeda estrangeira) */}
+          {f.moeda !== 'BRL' && Number(f.valor) > 0 && (
+            <p className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+              ≈ <strong className="text-foreground">{formatBRL(valorEmBRL(f.valor, f.moeda, rates))}</strong>{' '}
+              · cotação ao vivo {f.moeda} {formatBRL(f.moeda === 'USD' ? rates.USD : rates.EUR)}
+            </p>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="desc">Descrição</Label>
