@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
+import { MonthPicker } from '@/components/ui/month-picker'
 import { hojeISO, formatData, fimDoMes, rotuloMes } from '@/lib/utils'
 import {
   formatBRL,
@@ -299,12 +300,7 @@ export default function FluxoClient() {
             >
               Todo período
             </Button>
-            <Input
-              type="month"
-              className="w-44"
-              value={fMes}
-              onChange={(e) => setFMes(e.target.value)}
-            />
+            <MonthPicker value={fMes || hojeISO().slice(0, 7)} onChange={setFMes} />
           </div>
         </div>
         <div className="space-y-1">
