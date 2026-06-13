@@ -12,7 +12,8 @@
     "backup": "bash scripts/backup.sh",
     "importar": "node scripts/importar-financas.mjs",
     "importar:patrimonio": "node scripts/importar-patrimonio.mjs",
-    "importar:cripto": "node scripts/importar-cripto.mjs"
+    "importar:cripto": "node scripts/importar-cripto.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
