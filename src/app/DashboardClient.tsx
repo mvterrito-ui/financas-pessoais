@@ -19,7 +19,7 @@ import {
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { MonthPicker } from '@/components/ui/month-picker'
 import { Label } from '@/components/ui/label'
 import { hojeISO, fimDoMes, rotuloMes, mesAnterior } from '@/lib/utils'
 import {
@@ -178,7 +178,7 @@ export default function DashboardClient() {
       <div className="mb-3 flex flex-wrap items-end gap-3">
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Mês de referência</Label>
-          <Input type="month" className="w-44" value={mes} onChange={(e) => setMes(e.target.value)} />
+          <MonthPicker value={mes} onChange={setMes} />
         </div>
         <span className="ml-auto self-center text-xs text-muted-foreground">
           💱 USD {formatBRL(rates.USD)} · EUR {formatBRL(rates.EUR)}

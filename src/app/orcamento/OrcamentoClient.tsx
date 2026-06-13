@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { MonthPicker } from '@/components/ui/month-picker'
 import { usePromptDialog } from '@/components/ui/prompt'
 import { hojeISO, fimDoMes, rotuloMes } from '@/lib/utils'
 import { formatBRL } from '@/server/fluxo/fluxo.calc'
@@ -132,12 +133,7 @@ export default function OrcamentoClient() {
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Mês</Label>
-          <Input
-            type="month"
-            className="w-44"
-            value={mes}
-            onChange={(e) => setMes(e.target.value)}
-          />
+          <MonthPicker value={mes} onChange={setMes} />
         </div>
         <span className="ml-auto self-center text-sm text-muted-foreground">
           📅 {rotuloMes(mes)}
