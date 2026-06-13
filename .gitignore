@@ -45,3 +45,8 @@ next-env.d.ts
 
 # planilhas pessoais (dados reais — nunca versionar)
 /data/
+
+# instruções do agente (Claude) — uso interno, fora do repo público
+CLAUDE.md
+AGENTS.md
+.claude/
