@@ -6,6 +6,7 @@ import {
   Wallet,
   Plus,
   Trash2,
+  Pencil,
   ArrowUpRight,
   ArrowDownRight,
   Scale,
@@ -57,6 +58,7 @@ export default function FluxoClient() {
   const [categories, setCategories] = useState<Category[]>([])
   const [erro, setErro] = useState<string | null>(null)
   const [aberto, setAberto] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null) // null = criando; id = editando
   const [f, setF] = useState({ ...vazio })
 
   // filtros da listagem — começa no mês atual (botão "Todo período" zera o filtro)
@@ -125,7 +127,26 @@ export default function FluxoClient() {
   }, [carregarTx])
 
   function abrirNovo() {
+    setEditId(null)
     setF({ ...vazio })
+    setErro(null)
+    setAberto(true)
+  }
+
+  // Abre o mesmo modal, mas pré-preenchido pra editar um lançamento existente.
+  function abrirEditar(t: Transaction) {
+    setEditId(t.id)
+    setF({
+      tipo: t.tipo,
+      valor: String(t.valor),
+      data: t.data.slice(0, 10),
+      descricao: t.descricao ?? '',
+      category_id: t.category_id ?? '',
+      account_id: t.account_id ?? '',
+      recorrente: t.recorrente,
+      parcelado: false, // não dá pra "re-parcelar" ao editar
+      parcelas: '2',
+    })
     setErro(null)
     setAberto(true)
   }
@@ -134,21 +155,38 @@ export default function FluxoClient() {
     e.preventDefault()
     setErro(null)
     try {
-      const parcelar = f.tipo === 'saida' && f.parcelado && Number(f.parcelas) >= 2
-      await api('/api/transaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipo: f.tipo,
-          valor: Number(f.valor),
-          data: f.data,
-          descricao: f.descricao || null,
-          category_id: f.category_id || null,
-          account_id: f.account_id || null,
-          recorrente: parcelar ? false : f.recorrente,
-          parcelas: parcelar ? Number(f.parcelas) : undefined,
-        }),
-      })
+      if (editId) {
+        // Editando: PATCH só dos campos do lançamento (sem parcelas).
+        await api(`/api/transaction/${editId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tipo: f.tipo,
+            valor: Number(f.valor),
+            data: f.data,
+            descricao: f.descricao || null,
+            category_id: f.category_id || null,
+            account_id: f.account_id || null,
+            recorrente: f.recorrente,
+          }),
+        })
+      } else {
+        const parcelar = f.tipo === 'saida' && f.parcelado && Number(f.parcelas) >= 2
+        await api('/api/transaction', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tipo: f.tipo,
+            valor: Number(f.valor),
+            data: f.data,
+            descricao: f.descricao || null,
+            category_id: f.category_id || null,
+            account_id: f.account_id || null,
+            recorrente: parcelar ? false : f.recorrente,
+            parcelas: parcelar ? Number(f.parcelas) : undefined,
+          }),
+        })
+      }
       setAberto(false)
       await carregarTx()
     } catch (e) {
@@ -438,14 +476,26 @@ export default function FluxoClient() {
                     {t.tipo === 'entrada' ? '+' : '−'} {formatBRL(Number(t.valor))}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => excluir(t)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={() => abrirEditar(t)}
+                        title="Editar"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => excluir(t)}
+                        title="Excluir"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -454,8 +504,12 @@ export default function FluxoClient() {
         </Card>
       )}
 
-      {/* Modal de novo lançamento */}
-      <Modal open={aberto} onClose={() => setAberto(false)} title="Novo lançamento 🧾">
+      {/* Modal de novo lançamento / edição */}
+      <Modal
+        open={aberto}
+        onClose={() => setAberto(false)}
+        title={editId ? 'Editar lançamento ✏️' : 'Novo lançamento 🧾'}
+      >
         <form onSubmit={lancar} className="space-y-4">
           {/* Tipo */}
           <div className="flex gap-2">
@@ -560,8 +614,8 @@ export default function FluxoClient() {
             </div>
           </div>
 
-          {/* Parcelamento — só pra saída (compra parcelada no cartão etc.) */}
-          {f.tipo === 'saida' && (
+          {/* Parcelamento — só pra saída nova (não dá pra re-parcelar ao editar) */}
+          {f.tipo === 'saida' && !editId && (
             <div className="rounded-lg border border-border p-3">
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -620,7 +674,7 @@ export default function FluxoClient() {
             <Button type="button" variant="outline" onClick={() => setAberto(false)}>
               Cancelar
             </Button>
-            <Button type="submit">Lançar</Button>
+            <Button type="submit">{editId ? 'Salvar' : 'Lançar'}</Button>
           </div>
         </form>
       </Modal>
