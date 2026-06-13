@@ -59,8 +59,8 @@ export default function FluxoClient() {
   const [aberto, setAberto] = useState(false)
   const [f, setF] = useState({ ...vazio })
 
-  // filtros da listagem
-  const [fMes, setFMes] = useState('') // 'AAAA-MM' ou '' (todos)
+  // filtros da listagem — começa no mês atual (botão "Todo período" zera o filtro)
+  const [fMes, setFMes] = useState(hojeISO().slice(0, 7)) // 'AAAA-MM' ou '' (todos)
   const [fTipo, setFTipo] = useState<'' | 'entrada' | 'saida'>('')
 
   // importação de fatura
