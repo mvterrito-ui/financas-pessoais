@@ -1,13 +1,25 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { TrendingUp, TrendingDown, Landmark, Plus, DollarSign, Euro } from 'lucide-react'
+import {
+  TrendingUp,
+  TrendingDown,
+  Landmark,
+  Plus,
+  DollarSign,
+  Euro,
+  Trash2,
+  PiggyBank,
+  Wallet,
+  ChevronRight,
+} from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { MonthPicker } from '@/components/ui/month-picker'
@@ -15,6 +27,8 @@ import { usePromptDialog } from '@/components/ui/prompt'
 import { hojeISO, rotuloMes, mesAnterior } from '@/lib/utils'
 import { formatBRL } from '@/server/fluxo/fluxo.calc'
 import {
+  ORIGENS,
+  ehAutomatico,
   emBRL,
   evolucaoBRL,
   variacaoPct,
@@ -65,9 +79,17 @@ export default function PatrimonioClient() {
     }
   }, [api])
 
+  // 1º atualiza a foto do MÊS ATUAL dos investimentos (Ações, FIIs, Renda
+  // Fixa, Cripto) com o valor de hoje; depois carrega tudo.
   useEffect(() => {
-    carregar()
-  }, [carregar])
+    api('/api/patrimonio/sincronizar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mes: `${hojeISO().slice(0, 7)}-01` }),
+    })
+      .catch((e) => setErro(`Não deu pra atualizar os investimentos: ${(e as Error).message}`))
+      .finally(carregar)
+  }, [api, carregar])
 
   // Cotação ao vivo (USD-BRL e EUR-BRL). Se falhar, usa o fallback.
   useEffect(() => {
@@ -112,10 +134,21 @@ export default function PatrimonioClient() {
     await carregar()
   }
 
+  async function removerLugar(place: WealthPlace) {
+    if (!confirm(`Remover "${place.name}" do patrimônio? Ele some do total e da evolução.`)) return
+    setErro(null)
+    try {
+      await api(`/api/place/${place.id}`, { method: 'DELETE' })
+      await carregar()
+    } catch (e) {
+      setErro((e as Error).message)
+    }
+  }
+
   async function novoLugar() {
     const v = await ask({
-      title: 'Novo lugar',
-      fields: [{ name: 'name', label: 'Nome do lugar', placeholder: 'Tesouro Direto' }],
+      title: 'Novo bem (manual)',
+      fields: [{ name: 'name', label: 'Nome', placeholder: 'Conta corrente, Reserva, Imóvel...' }],
     })
     if (!v?.name) return
     await api('/api/place', {
@@ -125,6 +158,23 @@ export default function PatrimonioClient() {
     })
     await carregar()
   }
+
+  // Investimentos (automáticos, na ordem dos módulos) x outros bens (manuais).
+  const autos = useMemo(
+    () =>
+      ORIGENS.map((o) => places.find((p) => p.origem === o.origem)).filter(
+        (p): p is WealthPlace => !!p,
+      ),
+    [places],
+  )
+  const manuais = useMemo(() => places.filter((p) => !ehAutomatico(p)), [places])
+  const somaBRL = useCallback(
+    (lista: WealthPlace[]) =>
+      lista.reduce((s, p) => s + emBRL(Number(valores[p.id]) || 0, p.moeda, rates), 0),
+    [valores, rates],
+  )
+  const totalInvestBRL = somaBRL(autos)
+  const totalManualBRL = somaBRL(manuais)
 
   const moedaDoLugar = useMemo(
     () => Object.fromEntries(places.map((p) => [p.id, p.moeda])) as Record<string, Moeda>,
@@ -176,7 +226,7 @@ export default function PatrimonioClient() {
       icon={TrendingUp}
       actions={
         <Button onClick={novoLugar}>
-          <Plus /> Novo lugar
+          <Plus /> Novo bem
         </Button>
       }
     >
@@ -218,27 +268,37 @@ export default function PatrimonioClient() {
         />
       </div>
 
-      {/* Cards secundários: posições em moeda estrangeira */}
-      {(temUSD || temEUR) && (
-        <div className="mb-5 grid gap-3 sm:grid-cols-2">
-          {temUSD && (
-            <StatCard
-              label="Em dólar"
-              value={fmtMoeda(totalUSD, 'USD')}
-              icon={DollarSign}
-              sub={`≈ ${formatBRL(totalUSD * rates.USD)}`}
-            />
-          )}
-          {temEUR && (
-            <StatCard
-              label="Em euro"
-              value={fmtMoeda(totalEUR, 'EUR')}
-              icon={Euro}
-              sub={`≈ ${formatBRL(totalEUR * rates.EUR)}`}
-            />
-          )}
-        </div>
-      )}
+      {/* Composição: investimentos x outros bens; e moeda estrangeira */}
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Investimentos"
+          value={formatBRL(totalInvestBRL)}
+          icon={PiggyBank}
+          sub="Ações, FIIs, Renda Fixa e Cripto"
+        />
+        <StatCard
+          label="Outros bens (manual)"
+          value={formatBRL(totalManualBRL)}
+          icon={Wallet}
+          sub={`${manuais.length} ${manuais.length === 1 ? 'item' : 'itens'}`}
+        />
+        {temUSD && (
+          <StatCard
+            label="Em dólar"
+            value={fmtMoeda(totalUSD, 'USD')}
+            icon={DollarSign}
+            sub={`≈ ${formatBRL(totalUSD * rates.USD)}`}
+          />
+        )}
+        {temEUR && (
+          <StatCard
+            label="Em euro"
+            value={fmtMoeda(totalEUR, 'EUR')}
+            icon={Euro}
+            sub={`≈ ${formatBRL(totalEUR * rates.EUR)}`}
+          />
+        )}
+      </div>
 
       {erro && (
         <p className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -252,9 +312,49 @@ export default function PatrimonioClient() {
           <div className="border-b border-border bg-muted/40 px-4 py-3 text-sm font-medium text-muted-foreground">
             Valores em {rotuloMes(mes)}
           </div>
+          {/* Investimentos: valor vem dos módulos (só leitura) */}
+          <SecaoTitulo titulo="Investimentos" detalhe="automático" total={totalInvestBRL} />
           <div className="divide-y divide-border">
-            {places.map((p) => {
+            {autos.map((p) => {
+              const o = ORIGENS.find((x) => x.origem === p.origem)!
+              const tem = valores[p.id] !== undefined
               const nativo = Number(valores[p.id]) || 0
+              return (
+                <Link
+                  key={p.id}
+                  href={o.href}
+                  className="flex items-center justify-between gap-2 px-4 py-3 transition-colors hover:bg-accent/50"
+                  title={`Editar em ${o.nome}`}
+                >
+                  <span className="flex items-center gap-2 font-medium">
+                    <span>{o.emoji}</span> {p.name}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="flex flex-col items-end">
+                      <span className="tabular-nums">{tem ? fmtMoeda(nativo, p.moeda) : '—'}</span>
+                      {p.moeda !== 'BRL' && nativo > 0 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          ≈ {formatBRL(emBRL(nativo, p.moeda, rates))}
+                        </span>
+                      )}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+
+          {/* Outros bens: digitados à mão */}
+          <SecaoTitulo titulo="Outros bens" detalhe="manual" total={totalManualBRL} />
+          {manuais.length === 0 && (
+            <p className="px-4 py-4 text-sm text-muted-foreground">
+              Nada aqui ainda. Use <strong>Novo bem</strong> pra adicionar conta corrente, reserva,
+              dinheiro em outra moeda...
+            </p>
+          )}
+          <div className="divide-y divide-border">
+            {manuais.map((p) => {              const nativo = Number(valores[p.id]) || 0
               return (
                 <div key={p.id} className="flex items-center justify-between gap-2 px-4 py-2.5">
                   <span className="w-20 shrink-0 font-medium">{p.name}</span>
@@ -268,15 +368,12 @@ export default function PatrimonioClient() {
                     <option value="EUR">€</option>
                   </Select>
                   <div className="flex flex-1 flex-col items-end">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
+                    <MoneyInput
                       placeholder="0,00"
-                      className="h-9 w-32 text-right"
+                      className="h-9 w-36 text-right tabular-nums"
                       value={valores[p.id] ?? ''}
-                      onChange={(e) => setValores((v) => ({ ...v, [p.id]: e.target.value }))}
-                      onBlur={(e) => salvar(p.id, e.target.value)}
+                      onValueChange={(val) => setValores((v) => ({ ...v, [p.id]: val }))}
+                      onBlur={() => salvar(p.id, valores[p.id] ?? '')}
                     />
                     {p.moeda !== 'BRL' && nativo > 0 && (
                       <span className="mt-0.5 text-[10px] text-muted-foreground">
@@ -284,6 +381,16 @@ export default function PatrimonioClient() {
                       </span>
                     )}
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                    title={`Remover ${p.name}`}
+                    aria-label={`Remover ${p.name}`}
+                    onClick={() => removerLugar(p)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               )
             })}
@@ -325,5 +432,16 @@ export default function PatrimonioClient() {
         </Card>
       </div>
     </PageLayout>
+  )
+}
+
+function SecaoTitulo({ titulo, detalhe, total }: { titulo: string; detalhe: string; total: number }) {
+  return (
+    <div className="flex items-center justify-between border-y border-border bg-muted/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <span>
+        {titulo} <span className="font-normal normal-case">· {detalhe}</span>
+      </span>
+      <span className="tabular-nums normal-case">{formatBRL(total)}</span>
+    </div>
   )
 }

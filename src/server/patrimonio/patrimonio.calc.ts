@@ -2,12 +2,26 @@
 
 export type Moeda = 'BRL' | 'USD' | 'EUR'
 
+// Lugares AUTOMÁTICOS: o valor vem do módulo de investimento (não se digita).
+export type Origem = 'acao' | 'fii' | 'renda_fixa' | 'cripto'
+
+export const ORIGENS: { origem: Origem; nome: string; moeda: Moeda; href: string; emoji: string }[] = [
+  { origem: 'acao', nome: 'Ações', moeda: 'BRL', href: '/acoes', emoji: '📊' },
+  { origem: 'fii', nome: 'FIIs', moeda: 'BRL', href: '/fii', emoji: '🏢' },
+  { origem: 'renda_fixa', nome: 'Renda Fixa', moeda: 'BRL', href: '/renda-fixa', emoji: '🏦' },
+  { origem: 'cripto', nome: 'Cripto', moeda: 'USD', href: '/cripto', emoji: '🪙' },
+]
+
 export type WealthPlace = {
   id: string
   name: string
   ordem: number
   moeda: Moeda
+  /** null = manual; preenchido = automático (vem do módulo). */
+  origem?: Origem | null
 }
+
+export const ehAutomatico = (p: Pick<WealthPlace, 'origem'>) => p.origem != null
 
 export type WealthSnapshot = {
   id: string

@@ -12,6 +12,7 @@ import {
   TrendingUp,
   TrendingDown,
   Building2,
+  CandlestickChart,
   Bitcoin,
   Landmark,
   PieChart,
@@ -56,6 +57,8 @@ export default function DashboardClient() {
   const [snaps, setSnaps] = useState<WealthSnapshot[]>([])
   const [fiis, setFiis] = useState<Fii[]>([])
   const [fiiQuotes, setFiiQuotes] = useState<Quotes>({})
+  const [acoes, setAcoes] = useState<Fii[]>([])
+  const [acaoQuotes, setAcaoQuotes] = useState<Quotes>({})
   const [rendaFixa, setRendaFixa] = useState<FixedIncome[]>([])
   const [cryptos, setCryptos] = useState<CryptoSummary[]>([])
   const [buckets, setBuckets] = useState<BudgetBucket[]>([])
@@ -72,23 +75,34 @@ export default function DashboardClient() {
     [router],
   )
 
-  // Carrega tudo (uma vez) e a cotação.
+  // Atualiza a foto do mês dos investimentos no Patrimônio, depois carrega
+  // tudo (uma vez) e a cotação.
   useEffect(() => {
-    Promise.all([
-      api('/api/place'),
-      api('/api/snapshot'),
-      api('/api/fii'),
-      api('/api/crypto'),
-      api('/api/budget'),
-      api('/api/fixed-income'),
-    ]).then(([p, s, f, c, b, rf]) => {
-      setPlaces(p)
-      setSnaps(s)
-      setFiis(f)
-      setCryptos(c)
-      setBuckets(b)
-      setRendaFixa(rf)
+    fetch('/api/patrimonio/sincronizar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mes: `${hojeISO().slice(0, 7)}-01` }),
     })
+      .catch(() => {})
+      .finally(() =>
+        Promise.all([
+          api('/api/place'),
+          api('/api/snapshot'),
+          api('/api/fii'),
+          api('/api/crypto'),
+          api('/api/budget'),
+          api('/api/fixed-income'),
+          api('/api/acao'),
+        ]).then(([p, s, f, c, b, rf, ac]) => {
+          setPlaces(p)
+          setSnaps(s)
+          setFiis(f)
+          setCryptos(c)
+          setBuckets(b)
+          setRendaFixa(rf)
+          setAcoes(Array.isArray(ac) ? ac : [])
+        }),
+      )
     fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL')
       .then((r) => r.json())
       .then((d) => setRates({ USD: Number(d.USDBRL.bid), EUR: Number(d.EURBRL.bid) }))
@@ -101,6 +115,13 @@ export default function DashboardClient() {
     if (!tickers) return
     api(`/api/fii/quote?tickers=${tickers}`).then((d) => setFiiQuotes(d.precos ?? {}))
   }, [tickers, api])
+
+  // Cotação das ações (mesma fonte do FII).
+  const tickersAcoes = useMemo(() => acoes.map((a) => a.ticker).join(','), [acoes])
+  useEffect(() => {
+    if (!tickersAcoes) return
+    api(`/api/acao/quote?tickers=${tickersAcoes}`).then((d) => setAcaoQuotes(d.precos ?? {}))
+  }, [tickersAcoes, api])
 
   // Lançamentos do mês selecionado.
   useEffect(() => {
@@ -127,6 +148,7 @@ export default function DashboardClient() {
   const patMes = serie.length ? serie[serie.length - 1].mes.slice(0, 7) : mes
 
   const fii = fiiTotais(fiis, fiiQuotes)
+  const acao = fiiTotais(acoes, acaoQuotes)
   const rf = rfTotais(rendaFixa)
   const cryptoAno = cryptos.filter((c) => c.ano === ANO_ATUAL)
   const cy = cryptoTotais(cryptoAno)
@@ -141,7 +163,7 @@ export default function DashboardClient() {
       icon={LayoutDashboard}
     >
       {/* Patrimônio em destaque */}
-      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <Card className="bg-primary p-5 text-primary-foreground md:col-span-1">
           <p className="text-sm opacity-80">Patrimônio ({rotuloMes(patMes)})</p>
           <p className="mt-1 text-3xl font-bold tabular-nums">{formatBRL(patAtual)}</p>
@@ -151,6 +173,13 @@ export default function DashboardClient() {
             </p>
           )}
         </Card>
+        <StatCard
+          label="Ações (valor atual)"
+          value={formatBRL(acao.atual)}
+          icon={CandlestickChart}
+          accent={acao.resultado >= 0 ? 'success' : 'destructive'}
+          sub={`L/P ${acao.resultado >= 0 ? '+' : ''}${formatBRL(acao.resultado)}`}
+        />
         <StatCard
           label="FIIs (valor atual)"
           value={formatBRL(fii.atual)}
@@ -260,11 +289,12 @@ export default function DashboardClient() {
       </div>
 
       {/* Atalhos */}
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-6">
         {[
           { to: '/fluxo', label: 'Fluxo', emoji: '💸' },
           { to: '/orcamento', label: 'Orçamento', emoji: '🎯' },
           { to: '/patrimonio', label: 'Patrimônio', emoji: '📈' },
+          { to: '/acoes', label: 'Ações', emoji: '📊' },
           { to: '/fii', label: 'FIIs', emoji: '🏢' },
           { to: '/cripto', label: 'Cripto', emoji: '🪙' },
         ].map((a) => (

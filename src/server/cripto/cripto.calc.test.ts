@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { retornoPct, totais, somaItens, type CryptoSummary, type CryptoItem } from './cripto.calc'
+import { retornoPct, totais, somaItens, valorAtual, type CryptoSummary, type CryptoItem } from './cripto.calc'
 
 describe('cripto.calc', () => {
   it('retorno percentual (null sem aplicado)', () => {
@@ -23,5 +23,19 @@ describe('cripto.calc', () => {
       { id: '2', summary_id: 's', label: 'HOLD', valor: '200', ordem: 2 },
     ] as CryptoItem[]
     expect(somaItens(itens)).toBe(3180)
+  })
+})
+
+describe('cripto.valorAtual', () => {
+  const s = (ano: number, aplicado: number, resultado: number) =>
+    ({ id: `${ano}-${aplicado}`, exchange: 'X', ano, aplicado, resultado }) as CryptoSummary
+
+  it('sem dados => 0', () => {
+    expect(valorAtual([])).toBe(0)
+  })
+
+  it('usa só o ano mais recente: aplicado + resultado', () => {
+    const itens = [s(2025, 1000, 500), s(2026, 2000, 300), s(2026, 1000, -100)]
+    expect(valorAtual(itens)).toBe(3200) // (2000+300) + (1000-100)
   })
 })

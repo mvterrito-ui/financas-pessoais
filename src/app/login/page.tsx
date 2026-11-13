@@ -1,12 +1,24 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, type FormEvent } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+
+// Aviso quando o logout automático (12h) trouxe o usuário de volta pra cá.
+// useSearchParams exige Suspense numa página estática.
+function AvisoExpirou() {
+  const params = useSearchParams()
+  if (params.get('expirou') !== '1') return null
+  return (
+    <p className="mb-4 rounded-lg bg-amber-500/10 px-3 py-2 text-center text-sm text-amber-700 dark:text-amber-400">
+      Sua sessão expirou (12h). Entre de novo. 🔒
+    </p>
+  )
+}
 
 export default function LoginPage() {
   const router = useRouter()
@@ -61,6 +73,9 @@ export default function LoginPage() {
           </div>
         </div>
 
+        <Suspense fallback={null}>
+          <AvisoExpirou />
+        </Suspense>
         <Card className="p-6">
           <h2 className="mb-4 text-lg font-semibold">
             {modo === 'login' ? 'Entrar 👋' : 'Criar conta ✨'}

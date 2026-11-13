@@ -38,3 +38,13 @@ export type CryptoItem = {
 export function somaItens(itens: CryptoItem[]): number {
   return itens.reduce((s, i) => s + Number(i.valor), 0)
 }
+
+// ---- Valor atual (pro Patrimônio) -------------------------------------
+// Posição de hoje = aplicado + resultado das corretoras do ANO MAIS RECENTE
+// com dados (em US$). Anos anteriores são histórico, não somam.
+export function valorAtual(itens: CryptoSummary[]): number {
+  if (itens.length === 0) return 0
+  const ano = Math.max(...itens.map((i) => i.ano))
+  const t = totais(itens.filter((i) => i.ano === ano))
+  return t.aplicado + t.resultado
+}
