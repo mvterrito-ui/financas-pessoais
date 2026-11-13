@@ -78,11 +78,7 @@ export default function DashboardClient() {
   // Atualiza a foto do mês dos investimentos no Patrimônio, depois carrega
   // tudo (uma vez) e a cotação.
   useEffect(() => {
-    fetch('/api/patrimonio/sincronizar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mes: `${hojeISO().slice(0, 7)}-01` }),
-    })
+    fetch('/api/patrimonio/sincronizar', { method: 'POST' })
       .catch(() => {})
       .finally(() =>
         Promise.all([

@@ -10,7 +10,6 @@ import {
   Plus,
   DollarSign,
   Euro,
-  Trash2,
   PiggyBank,
   Wallet,
   ChevronRight,
@@ -19,24 +18,24 @@ import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { MoneyInput } from '@/components/ui/money-input'
 import { Label } from '@/components/ui/label'
-import { Select } from '@/components/ui/select'
 import { MonthPicker } from '@/components/ui/month-picker'
 import { usePromptDialog } from '@/components/ui/prompt'
-import { hojeISO, rotuloMes, mesAnterior } from '@/lib/utils'
+import { rotuloMes, mesAnterior } from '@/lib/utils'
 import { formatBRL } from '@/server/fluxo/fluxo.calc'
 import {
   ORIGENS,
   ehAutomatico,
   emBRL,
   evolucaoBRL,
+  mesAtualBR,
   variacaoPct,
   type Moeda,
   type Rates,
   type WealthPlace,
   type WealthSnapshot,
 } from '@/server/patrimonio/patrimonio.calc'
+import { LinhaBem, type StatusSalvar } from './LinhaBem'
 
 const FALLBACK: Rates = { USD: 5.4, EUR: 5.9 }
 
@@ -49,11 +48,12 @@ export default function PatrimonioClient() {
   const ask = usePromptDialog()
   const [places, setPlaces] = useState<WealthPlace[]>([])
   const [snaps, setSnaps] = useState<WealthSnapshot[]>([])
-  const [mes, setMes] = useState(hojeISO().slice(0, 7))
+  const [mes, setMes] = useState(mesAtualBR().slice(0, 7)) // horário de Brasília
   const [valores, setValores] = useState<Record<string, string>>({})
   const [rates, setRates] = useState<Rates>(FALLBACK)
   const [rateAoVivo, setRateAoVivo] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [status, setStatus] = useState<Record<string, StatusSalvar>>({})
 
   const api = useCallback(
     async (url: string, init?: RequestInit) => {
@@ -79,14 +79,10 @@ export default function PatrimonioClient() {
     }
   }, [api])
 
-  // 1º atualiza a foto do MÊS ATUAL dos investimentos (Ações, FIIs, Renda
-  // Fixa, Cripto) com o valor de hoje; depois carrega tudo.
+  // 1º atualiza a foto do MÊS ATUAL (investimentos com o valor de hoje +
+  // bens manuais herdados do mês anterior); depois carrega tudo.
   useEffect(() => {
-    api('/api/patrimonio/sincronizar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mes: `${hojeISO().slice(0, 7)}-01` }),
-    })
+    api('/api/patrimonio/sincronizar', { method: 'POST' })
       .catch((e) => setErro(`Não deu pra atualizar os investimentos: ${(e as Error).message}`))
       .finally(carregar)
   }, [api, carregar])
@@ -111,8 +107,37 @@ export default function PatrimonioClient() {
     setValores(m)
   }, [snaps, mesData])
 
-  async function salvar(place_id: string, valor: string) {
+  // Valores já salvos no mês e no mês anterior (por lugar, moeda nativa).
+  const valoresDoMes = useCallback(
+    (alvo: string) => {
+      const m = new Map<string, number>()
+      for (const s of snaps) if (s.mes.slice(0, 10) === alvo) m.set(s.place_id, Number(s.valor))
+      return m
+    },
+    [snaps],
+  )
+  const salvos = useMemo(() => valoresDoMes(mesData), [valoresDoMes, mesData])
+  const anteriores = useMemo(
+    () => valoresDoMes(`${mesAnterior(mes)}-01`),
+    [valoresDoMes, mes],
+  )
+
+  function marcar(place_id: string, st: StatusSalvar | null) {
+    setStatus((atual) => {
+      const novo = { ...atual }
+      if (st) novo[place_id] = st
+      else delete novo[place_id]
+      return novo
+    })
+  }
+
+  async function salvar(place_id: string) {
+    const valor = valores[place_id] ?? ''
+    const salvo = salvos.get(place_id)
+    // Nada mudou (ou campo vazio que nunca teve valor) -> não salva.
+    if (valor === '' ? salvo === undefined : Number(valor) === salvo) return
     setErro(null)
+    marcar(place_id, 'salvando')
     try {
       await api('/api/snapshot', {
         method: 'POST',
@@ -120,7 +145,20 @@ export default function PatrimonioClient() {
         body: JSON.stringify({ place_id, mes: mesData, valor: Number(valor) || 0 }),
       })
       await carregar()
+      marcar(place_id, 'salvo')
+      // Some o "✓ Salvo" depois de 2s (se não mudou de estado nesse meio-tempo).
+      setTimeout(
+        () =>
+          setStatus((atual) => {
+            if (atual[place_id] !== 'salvo') return atual
+            const novo = { ...atual }
+            delete novo[place_id]
+            return novo
+          }),
+        2000,
+      )
     } catch (e) {
+      marcar(place_id, 'erro')
       setErro((e as Error).message)
     }
   }
@@ -323,15 +361,25 @@ export default function PatrimonioClient() {
                 <Link
                   key={p.id}
                   href={o.href}
-                  className="flex items-center justify-between gap-2 px-4 py-3 transition-colors hover:bg-accent/50"
+                  className="group flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30"
                   title={`Editar em ${o.nome}`}
                 >
-                  <span className="flex items-center gap-2 font-medium">
-                    <span>{o.emoji}</span> {p.name}
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-lg">
+                      {o.emoji}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{p.name}</span>
+                      <span className="block text-xs text-muted-foreground group-hover:text-primary">
+                        Atualizado pelo módulo · editar
+                      </span>
+                    </span>
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="flex flex-col items-end">
-                      <span className="tabular-nums">{tem ? fmtMoeda(nativo, p.moeda) : '—'}</span>
+                      <span className="text-base font-semibold tabular-nums">
+                        {tem ? fmtMoeda(nativo, p.moeda) : '—'}
+                      </span>
                       {p.moeda !== 'BRL' && nativo > 0 && (
                         <span className="text-[10px] text-muted-foreground">
                           ≈ {formatBRL(emBRL(nativo, p.moeda, rates))}
@@ -348,53 +396,33 @@ export default function PatrimonioClient() {
           {/* Outros bens: digitados à mão */}
           <SecaoTitulo titulo="Outros bens" detalhe="manual" total={totalManualBRL} />
           {manuais.length === 0 && (
-            <p className="px-4 py-4 text-sm text-muted-foreground">
-              Nada aqui ainda. Use <strong>Novo bem</strong> pra adicionar conta corrente, reserva,
-              dinheiro em outra moeda...
+            <p className="px-4 pt-4 text-sm text-muted-foreground">
+              Conta corrente, reserva, dinheiro em outra moeda… tudo que não é investimento.
             </p>
           )}
           <div className="divide-y divide-border">
-            {manuais.map((p) => {              const nativo = Number(valores[p.id]) || 0
-              return (
-                <div key={p.id} className="flex items-center justify-between gap-2 px-4 py-2.5">
-                  <span className="w-20 shrink-0 font-medium">{p.name}</span>
-                  <Select
-                    className="h-9 w-20"
-                    value={p.moeda}
-                    onChange={(e) => mudarMoeda(p.id, e.target.value as Moeda)}
-                  >
-                    <option value="BRL">R$</option>
-                    <option value="USD">US$</option>
-                    <option value="EUR">€</option>
-                  </Select>
-                  <div className="flex flex-1 flex-col items-end">
-                    <MoneyInput
-                      placeholder="0,00"
-                      className="h-9 w-36 text-right tabular-nums"
-                      value={valores[p.id] ?? ''}
-                      onValueChange={(val) => setValores((v) => ({ ...v, [p.id]: val }))}
-                      onBlur={() => salvar(p.id, valores[p.id] ?? '')}
-                    />
-                    {p.moeda !== 'BRL' && nativo > 0 && (
-                      <span className="mt-0.5 text-[10px] text-muted-foreground">
-                        ≈ {formatBRL(emBRL(nativo, p.moeda, rates))}
-                      </span>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                    title={`Remover ${p.name}`}
-                    aria-label={`Remover ${p.name}`}
-                    onClick={() => removerLugar(p)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              )
-            })}
+            {manuais.map((p) => (
+              <LinhaBem
+                key={p.id}
+                place={p}
+                valor={valores[p.id] ?? ''}
+                anterior={anteriores.get(p.id) ?? null}
+                rates={rates}
+                status={status[p.id]}
+                onChange={(val) => setValores((v) => ({ ...v, [p.id]: val }))}
+                onSave={() => salvar(p.id)}
+                onMoeda={(m) => mudarMoeda(p.id, m)}
+                onRemove={() => removerLugar(p)}
+              />
+            ))}
           </div>
+          <button
+            type="button"
+            onClick={novoLugar}
+            className="flex w-full items-center justify-center gap-2 border-t border-dashed border-border px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-primary"
+          >
+            <Plus className="h-4 w-4" /> Adicionar bem
+          </button>
           <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3 font-semibold">
             <span>Total (em real)</span>
             <span className="tabular-nums text-primary">{formatBRL(totalBRL)}</span>

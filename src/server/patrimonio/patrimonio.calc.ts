@@ -61,3 +61,13 @@ export function variacaoPct(atual: number, anterior: number): number | null {
   if (!anterior) return null
   return ((atual - anterior) / anterior) * 100
 }
+
+/** 'AAAA-MM-01' do mês corrente no horário de Brasília (não UTC). */
+export function mesAtualBR(agora = new Date()): string {
+  const ym = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+  }).format(agora) // '2026-11'
+  return `${ym}-01`
+}
