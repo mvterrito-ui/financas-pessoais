@@ -8,7 +8,7 @@ import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { MoneyCommit } from '@/components/ui/money-input'
 import { usePromptDialog } from '@/components/ui/prompt'
 import { formatData } from '@/lib/utils'
 import { formatBRL } from '@/server/fluxo/fluxo.calc'
@@ -72,8 +72,8 @@ export default function RendaFixaClient() {
         { name: 'nome', label: 'Título', placeholder: 'Tesouro Selic 2029, CDB Banco X…' },
         { name: 'instituicao', label: 'Instituição', placeholder: 'XP, Nubank…' },
         { name: 'tipo', label: 'Tipo', placeholder: 'Tesouro, CDB, LCI…' },
-        { name: 'valor_aplicado', label: 'Valor aplicado (R$)', type: 'number' },
-        { name: 'valor_atual', label: 'Valor atual (R$)', type: 'number' },
+        { name: 'valor_aplicado', label: 'Valor aplicado', type: 'money', prefixo: 'R$' },
+        { name: 'valor_atual', label: 'Valor atual', type: 'money', prefixo: 'R$' },
         { name: 'vencimento', label: 'Vencimento (opcional)', type: 'text', placeholder: 'AAAA-MM-DD' },
       ],
     })
@@ -178,21 +178,21 @@ export default function RendaFixaClient() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        defaultValue={String(f.valor_aplicado)}
-                        className="h-9 w-28"
-                        onBlur={(e) => salvar(f.id, 'valor_aplicado', e.target.value)}
+                      <MoneyCommit
+                        prefixo="R$"
+                        aria-label={`Valor aplicado em ${f.nome}`}
+                        inicial={f.valor_aplicado}
+                        className="w-36"
+                        onCommit={(v) => salvar(f.id, 'valor_aplicado', v)}
                       />
                     </td>
                     <td className="px-4 py-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        defaultValue={String(f.valor_atual)}
-                        className="h-9 w-28"
-                        onBlur={(e) => salvar(f.id, 'valor_atual', e.target.value)}
+                      <MoneyCommit
+                        prefixo="R$"
+                        aria-label={`Valor atual de ${f.nome}`}
+                        inicial={f.valor_atual}
+                        className="w-36"
+                        onCommit={(v) => salvar(f.id, 'valor_atual', v)}
                       />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">

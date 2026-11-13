@@ -3,6 +3,8 @@
 import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
 import { Modal } from './modal'
 import { Input } from './input'
+import { MoneyInput } from './money-input'
+import { NumberField } from './number-field'
 import { Label } from './label'
 import { Button } from './button'
 
@@ -10,7 +12,18 @@ import { Button } from './button'
 // Uso:  const ask = usePromptDialog()
 //       const v = await ask({ title: 'Novo X', fields: [{ name:'nome', label:'Nome' }] })
 //       if (!v) return  // cancelou
-type Field = { name: string; label: string; type?: 'text' | 'number'; placeholder?: string }
+// type 'money'  -> MoneyInput (máscara 1.234,56; use `prefixo` "R$"/"US$")
+// type 'number' -> NumberField (vírgula decimal; `casas`, `sufixo` "%")
+// O valor devolvido é sempre string com PONTO decimal (Number() funciona).
+type Field = {
+  name: string
+  label: string
+  type?: 'text' | 'number' | 'money'
+  placeholder?: string
+  prefixo?: string
+  sufixo?: string
+  casas?: number
+}
 type Config = { title: string; fields: Field[]; submitLabel?: string }
 type Valores = Record<string, string>
 
@@ -49,15 +62,36 @@ export function PromptProvider({ children }: { children: ReactNode }) {
           >
             {cfg.fields.map((f, i) => (
               <div key={f.name} className="space-y-1.5">
-                <Label>{f.label}</Label>
-                <Input
-                  type={f.type ?? 'text'}
-                  step={f.type === 'number' ? 'any' : undefined}
-                  placeholder={f.placeholder}
-                  value={vals[f.name] ?? ''}
-                  onChange={(e) => setVals((v) => ({ ...v, [f.name]: e.target.value }))}
-                  autoFocus={i === 0}
-                />
+                <Label htmlFor={`prompt-${f.name}`}>{f.label}</Label>
+                {f.type === 'money' ? (
+                  <MoneyInput
+                    id={`prompt-${f.name}`}
+                    prefixo={f.prefixo}
+                    placeholder={f.placeholder ?? '0,00'}
+                    value={vals[f.name] ?? ''}
+                    onValueChange={(val) => setVals((v) => ({ ...v, [f.name]: val }))}
+                    autoFocus={i === 0}
+                  />
+                ) : f.type === 'number' ? (
+                  <NumberField
+                    id={`prompt-${f.name}`}
+                    prefixo={f.prefixo}
+                    sufixo={f.sufixo}
+                    casas={f.casas}
+                    placeholder={f.placeholder ?? '0'}
+                    value={vals[f.name] ?? ''}
+                    onValueChange={(val) => setVals((v) => ({ ...v, [f.name]: val }))}
+                    autoFocus={i === 0}
+                  />
+                ) : (
+                  <Input
+                    id={`prompt-${f.name}`}
+                    placeholder={f.placeholder}
+                    value={vals[f.name] ?? ''}
+                    onChange={(e) => setVals((v) => ({ ...v, [f.name]: e.target.value }))}
+                    autoFocus={i === 0}
+                  />
+                )}
               </div>
             ))}
             <div className="flex justify-end gap-2 pt-1">

@@ -18,6 +18,9 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
+import { NumberField } from '@/components/ui/number-field'
+import { MoedaToggle, simboloMoeda } from '@/components/ui/moeda-toggle'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -556,28 +559,21 @@ export default function FluxoClient() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="valor">Valor *</Label>
-              <div className="flex gap-1">
-                <Select
-                  className="w-20"
-                  value={f.moeda}
-                  onChange={(e) => set('moeda', e.target.value as Moeda)}
-                >
-                  <option value="BRL">R$</option>
-                  <option value="USD">US$</option>
-                  <option value="EUR">€</option>
-                </Select>
-                <Input
-                  id="valor"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0,00"
-                  value={f.valor}
-                  onChange={(e) => set('valor', e.target.value)}
-                  required
-                  autoFocus
-                />
-              </div>
+              <MoneyInput
+                id="valor"
+                prefixo={simboloMoeda(f.moeda)}
+                placeholder="0,00"
+                value={f.valor}
+                onValueChange={(v) => set('valor', v)}
+                required
+                autoFocus
+              />
+              <MoedaToggle
+                tamanho="sm"
+                label="Moeda do lançamento"
+                value={f.moeda}
+                onChange={(m) => set('moeda', m)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="data">Data *</Label>
@@ -669,14 +665,14 @@ export default function FluxoClient() {
                     <Label htmlFor="parcelas" className="text-sm">
                       Em
                     </Label>
-                    <Input
+                    <NumberField
                       id="parcelas"
-                      type="number"
-                      min="2"
-                      max="72"
+                      tamanho="sm"
+                      casas={0}
+                      sufixo="x"
                       className="w-20"
                       value={f.parcelas}
-                      onChange={(e) => set('parcelas', e.target.value)}
+                      onValueChange={(v) => set('parcelas', v)}
                     />
                     <span className="text-sm text-muted-foreground">parcelas (o valor é o total)</span>
                   </div>

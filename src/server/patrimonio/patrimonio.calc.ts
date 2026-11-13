@@ -19,7 +19,13 @@ export type WealthPlace = {
   moeda: Moeda
   /** null = manual; preenchido = automático (vem do módulo). */
   origem?: Origem | null
+  /** 'AAAA-MM-DD': oculto (some e deixa de contar) a partir desse mês. */
+  oculto_desde?: string | null
 }
+
+/** O bem aparece (e conta) no mês 'AAAA-MM-01'? */
+export const visivelNoMes = (p: Pick<WealthPlace, 'oculto_desde'>, mes: string) =>
+  !p.oculto_desde || mes < p.oculto_desde.slice(0, 10)
 
 export const ehAutomatico = (p: Pick<WealthPlace, 'origem'>) => p.origem != null
 

@@ -13,6 +13,8 @@ import {
   PiggyBank,
   Wallet,
   ChevronRight,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
@@ -29,6 +31,7 @@ import {
   emBRL,
   evolucaoBRL,
   mesAtualBR,
+  visivelNoMes,
   variacaoPct,
   type Moeda,
   type Rates,
@@ -172,8 +175,38 @@ export default function PatrimonioClient() {
     await carregar()
   }
 
+  async function ocultarLugar(place: WealthPlace, ocultar: boolean) {
+    if (
+      ocultar &&
+      !confirm(
+        `Ocultar "${place.name}" a partir de ${rotuloMes(mes)}?\n\n` +
+          'Ele sai da lista e deixa de contar daqui pra frente. ' +
+          'Os meses anteriores continuam no histórico. Dá pra mostrar de novo depois.',
+      )
+    )
+      return
+    setErro(null)
+    try {
+      await api(`/api/place/${place.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oculto_desde: ocultar ? mesData : null }),
+      })
+      await carregar()
+    } catch (e) {
+      setErro((e as Error).message)
+    }
+  }
+
   async function removerLugar(place: WealthPlace) {
-    if (!confirm(`Remover "${place.name}" do patrimônio? Ele some do total e da evolução.`)) return
+    if (
+      !confirm(
+        `Remover "${place.name}" de vez?\n\n` +
+          'Ele some do total e de TODO o histórico (gráficos e projeção). ' +
+          'Se só não tem mais esse bem, use Ocultar — mantém os meses anteriores.',
+      )
+    )
+      return
     setErro(null)
     try {
       await api(`/api/place/${place.id}`, { method: 'DELETE' })
@@ -205,7 +238,16 @@ export default function PatrimonioClient() {
       ),
     [places],
   )
-  const manuais = useMemo(() => places.filter((p) => !ehAutomatico(p)), [places])
+  const todosManuais = useMemo(() => places.filter((p) => !ehAutomatico(p)), [places])
+  const manuais = useMemo(
+    () => todosManuais.filter((p) => visivelNoMes(p, mesData)),
+    [todosManuais, mesData],
+  )
+  const ocultos = useMemo(
+    () => todosManuais.filter((p) => !visivelNoMes(p, mesData)),
+    [todosManuais, mesData],
+  )
+  const [verOcultos, setVerOcultos] = useState(false)
   const somaBRL = useCallback(
     (lista: WealthPlace[]) =>
       lista.reduce((s, p) => s + emBRL(Number(valores[p.id]) || 0, p.moeda, rates), 0),
@@ -412,6 +454,7 @@ export default function PatrimonioClient() {
                 onChange={(val) => setValores((v) => ({ ...v, [p.id]: val }))}
                 onSave={() => salvar(p.id)}
                 onMoeda={(m) => mudarMoeda(p.id, m)}
+                onHide={() => ocultarLugar(p, true)}
                 onRemove={() => removerLugar(p)}
               />
             ))}
@@ -423,6 +466,49 @@ export default function PatrimonioClient() {
           >
             <Plus className="h-4 w-4" /> Adicionar bem
           </button>
+
+          {/* Ocultos: fora da lista e do total a partir do mês, histórico mantido */}
+          {ocultos.length > 0 && (
+            <div className="border-t border-border bg-muted/20">
+              <button
+                type="button"
+                onClick={() => setVerOcultos((v) => !v)}
+                aria-expanded={verOcultos}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <EyeOff className="h-3.5 w-3.5" />
+                {ocultos.length} {ocultos.length === 1 ? 'bem oculto' : 'bens ocultos'}
+                <ChevronRight
+                  className={`ml-auto h-3.5 w-3.5 transition-transform ${verOcultos ? 'rotate-90' : ''}`}
+                />
+              </button>
+              {verOcultos && (
+                <div className="divide-y divide-border">
+                  {ocultos.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-muted-foreground">
+                          {p.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground/80">
+                          Oculto desde {rotuloMes(String(p.oculto_desde).slice(0, 7))} · histórico
+                          anterior mantido
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => ocultarLugar(p, false)}
+                        title="Volta a aparecer e contar em todos os meses"
+                      >
+                        <Eye /> Mostrar
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3 font-semibold">
             <span>Total (em real)</span>
             <span className="tabular-nums text-primary">{formatBRL(totalBRL)}</span>

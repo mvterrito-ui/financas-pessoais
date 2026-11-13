@@ -1,19 +1,13 @@
 'use client'
 
-import { Check, Loader2, Trash2, TriangleAlert } from 'lucide-react'
+import { Check, EyeOff, Loader2, Trash2, TriangleAlert } from 'lucide-react'
 import { MoneyInput } from '@/components/ui/money-input'
+import { MoedaToggle, simboloMoeda } from '@/components/ui/moeda-toggle'
 import { cn } from '@/lib/utils'
 import { formatBRL } from '@/server/fluxo/fluxo.calc'
 import { emBRL, type Moeda, type Rates, type WealthPlace } from '@/server/patrimonio/patrimonio.calc'
 
 export type StatusSalvar = 'salvando' | 'salvo' | 'erro'
-
-const MOEDAS: { moeda: Moeda; simbolo: string }[] = [
-  { moeda: 'BRL', simbolo: 'R$' },
-  { moeda: 'USD', simbolo: 'US$' },
-  { moeda: 'EUR', simbolo: '€' },
-]
-const simbolo = (m: Moeda) => MOEDAS.find((x) => x.moeda === m)!.simbolo
 
 const fmtMoeda = (v: number, moeda: Moeda) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: moeda })
@@ -33,6 +27,7 @@ export function LinhaBem({
   onChange,
   onSave,
   onMoeda,
+  onHide,
   onRemove,
 }: {
   place: WealthPlace
@@ -44,6 +39,7 @@ export function LinhaBem({
   onChange: (valor: string) => void
   onSave: () => void
   onMoeda: (moeda: Moeda) => void
+  onHide: () => void
   onRemove: () => void
 }) {
   const vazio = valor === ''
@@ -97,35 +93,10 @@ export function LinhaBem({
 
       {/* Moeda + valor + remover */}
       <div className="flex w-full items-center gap-2 sm:w-auto">
-        <div
-          role="radiogroup"
-          aria-label={`Moeda de ${place.name}`}
-          className="inline-flex shrink-0 rounded-lg bg-muted p-0.5"
-        >
-          {MOEDAS.map((m) => {
-            const ativa = m.moeda === place.moeda
-            return (
-              <button
-                key={m.moeda}
-                type="button"
-                role="radio"
-                aria-checked={ativa}
-                onClick={() => !ativa && onMoeda(m.moeda)}
-                className={cn(
-                  'rounded-md px-2 py-1 text-xs font-semibold transition-all',
-                  ativa
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {m.simbolo}
-              </button>
-            )
-          })}
-        </div>
+        <MoedaToggle label={`Moeda de ${place.name}`} value={place.moeda} onChange={onMoeda} />
 
         <MoneyInput
-          prefixo={simbolo(place.moeda)}
+          prefixo={simboloMoeda(place.moeda)}
           placeholder="0,00"
           aria-label={`Valor de ${place.name}`}
           className="flex-1 sm:w-44 sm:flex-none"
@@ -134,15 +105,26 @@ export function LinhaBem({
           onBlur={onSave}
         />
 
-        <button
-          type="button"
-          onClick={onRemove}
-          title={`Remover ${place.name}`}
-          aria-label={`Remover ${place.name}`}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+        <div className="flex shrink-0 items-center transition-opacity focus-within:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={onHide}
+            title={`Ocultar ${place.name} (mantém o histórico)`}
+            aria-label={`Ocultar ${place.name}`}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <EyeOff className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            title={`Remover ${place.name} (apaga do histórico)`}
+            aria-label={`Remover ${place.name}`}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   )

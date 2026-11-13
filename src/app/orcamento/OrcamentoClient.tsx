@@ -8,7 +8,7 @@ import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { NumberField } from '@/components/ui/number-field'
 import { Label } from '@/components/ui/label'
 import { MonthPicker } from '@/components/ui/month-picker'
 import { usePromptDialog } from '@/components/ui/prompt'
@@ -92,7 +92,7 @@ export default function OrcamentoClient() {
       title: 'Novo balde',
       fields: [
         { name: 'name', label: 'Nome do balde', placeholder: 'Viagem' },
-        { name: 'pct', label: 'Percentual (%)', type: 'number' },
+        { name: 'pct', label: 'Percentual', type: 'number', sufixo: '%' },
       ],
     })
     if (!v?.name) return
@@ -190,15 +190,14 @@ export default function OrcamentoClient() {
                 <tr key={b.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-3 font-medium">{b.name}</td>
                   <td className="px-4 py-3">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      className="h-9 w-24"
+                    <NumberField
+                      tamanho="sm"
+                      sufixo="%"
+                      aria-label={`Percentual de ${b.name}`}
+                      className="w-24"
                       value={String(b.percentual)}
-                      onChange={(e) => editarPercentual(b.id, e.target.value)}
-                      onBlur={(e) => salvarPercentual(b.id, e.target.value)}
+                      onValueChange={(v) => editarPercentual(b.id, v)}
+                      onBlur={(e) => salvarPercentual(b.id, e.target.value.replace(',', '.'))}
                     />
                   </td>
                   <td className="px-4 py-3 text-right font-semibold tabular-nums text-emerald-600">

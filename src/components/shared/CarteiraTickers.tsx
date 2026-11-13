@@ -8,7 +8,8 @@ import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { MoneyCommit } from '@/components/ui/money-input'
+import { NumberCommit } from '@/components/ui/number-field'
 import { usePromptDialog } from '@/components/ui/prompt'
 import { formatBRL } from '@/server/fluxo/fluxo.calc'
 import {
@@ -103,8 +104,8 @@ export function CarteiraTickers({ config: c }: { config: CarteiraConfig }) {
       title: c.novoLabel,
       fields: [
         { name: 'ticker', label: 'Ticker', placeholder: c.tickerExemplo },
-        { name: 'quantidade', label: c.qtdLabel, type: 'number' },
-        { name: 'preco_medio', label: 'Preço médio (R$)', type: 'number' },
+        { name: 'quantidade', label: c.qtdLabel, type: 'number', casas: 4 },
+        { name: 'preco_medio', label: 'Preço médio', type: 'money', prefixo: 'R$' },
       ],
     })
     if (!v?.ticker) return
@@ -202,21 +203,21 @@ export function CarteiraTickers({ config: c }: { config: CarteiraConfig }) {
                   <tr key={f.id} className="border-b border-border last:border-0">
                     <td className="px-4 py-3 font-semibold">{f.ticker}</td>
                     <td className="px-4 py-3">
-                      <Input
-                        type="number"
-                        step="0.0001"
-                        defaultValue={String(f.quantidade)}
-                        className="h-9 w-24"
-                        onBlur={(e) => salvar(f.id, 'quantidade', e.target.value)}
+                      <NumberCommit
+                        casas={4}
+                        aria-label={`Quantidade de ${f.ticker}`}
+                        inicial={f.quantidade}
+                        className="w-28"
+                        onCommit={(v) => salvar(f.id, 'quantidade', v)}
                       />
                     </td>
                     <td className="px-4 py-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        defaultValue={String(f.preco_medio)}
-                        className="h-9 w-28"
-                        onBlur={(e) => salvar(f.id, 'preco_medio', e.target.value)}
+                      <MoneyCommit
+                        prefixo="R$"
+                        aria-label={`Preço médio de ${f.ticker}`}
+                        inicial={f.preco_medio}
+                        className="w-32"
+                        onCommit={(v) => salvar(f.id, 'preco_medio', v)}
                       />
                     </td>
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">

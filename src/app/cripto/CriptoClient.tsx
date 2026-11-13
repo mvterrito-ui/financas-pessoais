@@ -8,7 +8,7 @@ import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { MoneyCommit } from '@/components/ui/money-input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Modal } from '@/components/ui/modal'
@@ -143,7 +143,7 @@ export default function CriptoClient() {
       title: 'Novo item',
       fields: [
         { name: 'label', label: 'Nome', placeholder: 'TRADE, HOLD, LTC…' },
-        { name: 'valor', label: 'Valor (US$)', type: 'number' },
+        { name: 'valor', label: 'Valor', type: 'money', prefixo: 'US$' },
       ],
     })
     if (!v?.label) return
@@ -275,21 +275,23 @@ export default function CriptoClient() {
                       </button>
                     </td>
                     <td className="px-4 py-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        defaultValue={String(l.aplicado)}
-                        className="h-9 w-32"
-                        onBlur={(e) => salvar(l.exchange, 'aplicado', e.target.value)}
+                      <MoneyCommit
+                        prefixo="US$"
+                        aria-label={`Aplicado em ${l.exchange}`}
+                        inicial={l.aplicado}
+                        className="w-36"
+                        onCommit={(v) => salvar(l.exchange, 'aplicado', v)}
                       />
                     </td>
                     <td className="px-4 py-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        defaultValue={String(l.resultado)}
-                        className="h-9 w-32"
-                        onBlur={(e) => salvar(l.exchange, 'resultado', e.target.value)}
+                      <MoneyCommit
+                        prefixo="US$"
+                        permitirNegativo
+                        title="Prejuízo? Digite - pra deixar negativo"
+                        aria-label={`Resultado em ${l.exchange}`}
+                        inicial={l.resultado}
+                        className="w-36"
+                        onCommit={(v) => salvar(l.exchange, 'resultado', v)}
                       />
                     </td>
                     <td
@@ -352,13 +354,12 @@ export default function CriptoClient() {
               {detItens.map((it) => (
                 <div key={it.id} className="flex items-center justify-between gap-2 px-3 py-2">
                   <span className="flex-1 font-medium">{it.label}</span>
-                  <span className="text-sm text-muted-foreground">US$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    defaultValue={String(it.valor)}
-                    className="h-8 w-28 text-right"
-                    onBlur={(e) => salvarItem(it.id, e.target.value)}
+                  <MoneyCommit
+                    prefixo="US$"
+                    aria-label={`Valor de ${it.label}`}
+                    inicial={it.valor}
+                    className="w-36"
+                    onCommit={(v) => salvarItem(it.id, v)}
                   />
                   <Button
                     variant="ghost"

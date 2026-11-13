@@ -8,7 +8,8 @@ import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
+import { NumberField } from '@/components/ui/number-field'
 import { Label } from '@/components/ui/label'
 import { formatBRL } from '@/server/fluxo/fluxo.calc'
 import {
@@ -187,15 +188,14 @@ export default function ProjecaoClient() {
               <div className="space-y-1.5">
                 <Label htmlFor="taxa">Rendimento ao mês (%)</Label>
                 <div className="flex items-center gap-2">
-                  <Input
+                  <NumberField
                     id="taxa"
-                    type="number"
-                    step="0.1"
-                    className="w-28"
+                    sufixo="% a.m."
+                    className="w-36"
                     value={taxaManual ? taxaInput : taxaAuto?.toFixed(2) ?? ''}
-                    placeholder={taxaAuto?.toFixed(2) ?? '1,00'}
-                    onChange={(e) => {
-                      setTaxaInput(e.target.value)
+                    placeholder={taxaAuto?.toFixed(2).replace('.', ',') ?? '1,00'}
+                    onValueChange={(v) => {
+                      setTaxaInput(v)
                       setTaxaManual(true)
                     }}
                   />
@@ -222,14 +222,12 @@ export default function ProjecaoClient() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="aporte">Aporte mensal (R$)</Label>
-                <Input
+                <MoneyInput
                   id="aporte"
-                  type="number"
-                  step="50"
-                  min="0"
-                  className="w-32"
+                  prefixo="R$"
+                  className="w-44"
                   value={aporte}
-                  onChange={(e) => setAporte(e.target.value)}
+                  onValueChange={setAporte}
                 />
                 <p className="text-xs text-muted-foreground">Quanto você guarda por mês.</p>
               </div>
