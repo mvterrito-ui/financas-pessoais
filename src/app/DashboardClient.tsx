@@ -43,6 +43,7 @@ import { totais as fiiTotais, type Fii, type Quotes } from '@/server/fii/fii.cal
 import { totais as rfTotais, type FixedIncome } from '@/server/renda-fixa/renda-fixa.calc'
 import { totais as cryptoTotais, type CryptoSummary } from '@/server/cripto/cripto.calc'
 import { alocar, type BudgetBucket } from '@/server/orcamento/orcamento.calc'
+import { sincronizarPatrimonio } from '@/lib/sincronizar'
 
 const FALLBACK: Rates = { USD: 5.4, EUR: 5.9 }
 const ANO_ATUAL = Number(hojeISO().slice(0, 4))
@@ -75,30 +76,35 @@ export default function DashboardClient() {
     [router],
   )
 
-  // Atualiza a foto do mês dos investimentos no Patrimônio, depois carrega
-  // tudo (uma vez) e a cotação.
+  // Carrega tudo (uma vez) e a cotação. Em paralelo, atualiza a foto do mês
+  // no Patrimônio (em segundo plano) e, se atualizou, recarrega só o patrimônio.
   useEffect(() => {
-    fetch('/api/patrimonio/sincronizar', { method: 'POST' })
-      .catch(() => {})
-      .finally(() =>
-        Promise.all([
-          api('/api/place'),
-          api('/api/snapshot'),
-          api('/api/fii'),
-          api('/api/crypto'),
-          api('/api/budget'),
-          api('/api/fixed-income'),
-          api('/api/acao'),
-        ]).then(([p, s, f, c, b, rf, ac]) => {
+    Promise.all([
+      api('/api/place'),
+      api('/api/snapshot'),
+      api('/api/fii'),
+      api('/api/crypto'),
+      api('/api/budget'),
+      api('/api/fixed-income'),
+      api('/api/acao'),
+    ]).then(([p, s, f, c, b, rf, ac]) => {
+      setPlaces(p)
+      setSnaps(s)
+      setFiis(f)
+      setCryptos(c)
+      setBuckets(b)
+      setRendaFixa(rf)
+      setAcoes(Array.isArray(ac) ? ac : [])
+    })
+    sincronizarPatrimonio()
+      .then((atualizou) => {
+        if (!atualizou) return
+        return Promise.all([api('/api/place'), api('/api/snapshot')]).then(([p, s]) => {
           setPlaces(p)
           setSnaps(s)
-          setFiis(f)
-          setCryptos(c)
-          setBuckets(b)
-          setRendaFixa(rf)
-          setAcoes(Array.isArray(ac) ? ac : [])
-        }),
-      )
+        })
+      })
+      .catch(() => {})
     fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL')
       .then((r) => r.json())
       .then((d) => setRates({ USD: Number(d.USDBRL.bid), EUR: Number(d.EURBRL.bid) }))

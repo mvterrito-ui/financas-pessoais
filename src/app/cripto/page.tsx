@@ -1,9 +1,7 @@
-import { redirect } from 'next/navigation'
-import { getAuthContext } from '@/server/auth/context'
 import CriptoClient from './CriptoClient'
 
-export default async function CriptoPage() {
-  const ctx = await getAuthContext()
-  if (!ctx) redirect('/login')
+// Página "casca" (estática): quem não está logado é mandado pro /login pelo
+// proxy.ts; os DADOS são protegidos nas rotas /api (withAuth + RLS).
+export default function CriptoPage() {
   return <CriptoClient />
 }

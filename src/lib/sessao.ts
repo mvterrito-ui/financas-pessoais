@@ -18,14 +18,19 @@ export function loginEmMs(accessToken: string | null | undefined): number | null
     const json = JSON.parse(
       atob(payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=')),
     )
-    const amr: unknown[] = Array.isArray(json.amr) ? json.amr : []
-    const ts = amr
-      .map((a) => (a as AmrEntry)?.timestamp)
-      .filter((t): t is number => typeof t === 'number')
-    return ts.length ? Math.max(...ts) * 1000 : null
+    return loginEmMsDosClaims(json)
   } catch {
     return null
   }
+}
+
+/** Mesmo que loginEmMs, mas a partir dos claims já decodificados (getClaims). */
+export function loginEmMsDosClaims(claims: { amr?: unknown } | null | undefined): number | null {
+  const amr: unknown[] = Array.isArray(claims?.amr) ? claims.amr : []
+  const ts = amr
+    .map((a) => (a as AmrEntry)?.timestamp)
+    .filter((t): t is number => typeof t === 'number')
+  return ts.length ? Math.max(...ts) * 1000 : null
 }
 
 /** Quando a sessão expira (ms), ou null se não der pra saber. */

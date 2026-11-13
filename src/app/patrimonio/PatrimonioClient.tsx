@@ -39,6 +39,7 @@ import {
   type WealthSnapshot,
 } from '@/server/patrimonio/patrimonio.calc'
 import { LinhaBem, type StatusSalvar } from './LinhaBem'
+import { sincronizarPatrimonio } from '@/lib/sincronizar'
 
 const FALLBACK: Rates = { USD: 5.4, EUR: 5.9 }
 
@@ -82,13 +83,16 @@ export default function PatrimonioClient() {
     }
   }, [api])
 
-  // 1º atualiza a foto do MÊS ATUAL (investimentos com o valor de hoje +
-  // bens manuais herdados do mês anterior); depois carrega tudo.
+  // Carrega JÁ o que está salvo; em paralelo atualiza a foto do mês atual
+  // (investimentos + manuais herdados) e, se atualizou, recarrega.
   useEffect(() => {
-    api('/api/patrimonio/sincronizar', { method: 'POST' })
+    carregar()
+    sincronizarPatrimonio()
+      .then((atualizou) => {
+        if (atualizou) return carregar()
+      })
       .catch((e) => setErro(`Não deu pra atualizar os investimentos: ${(e as Error).message}`))
-      .finally(carregar)
-  }, [api, carregar])
+  }, [carregar])
 
   // Cotação ao vivo (USD-BRL e EUR-BRL). Se falhar, usa o fallback.
   useEffect(() => {

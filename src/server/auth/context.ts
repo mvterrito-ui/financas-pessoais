@@ -14,21 +14,22 @@ export type AuthContext = {
 export async function getAuthContext(): Promise<AuthContext | null> {
   const supabase = await createSupabaseServerClient()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
+  // getClaims() valida o JWT localmente (chave assimétrica) — sem a ida ao
+  // servidor de Auth que o getUser() faz em toda chamada.
+  const { data } = await supabase.auth.getClaims()
+  const userId = data?.claims?.sub
+  if (!userId) return null
 
   const { data: profile } = await supabase
     .from('profile')
     .select('tenant_id, role')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single()
   if (!profile) return null
 
   return {
     supabase,
-    userId: user.id,
+    userId,
     tenantId: profile.tenant_id,
     role: profile.role,
   }

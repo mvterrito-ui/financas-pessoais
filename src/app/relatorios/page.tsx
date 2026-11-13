@@ -1,9 +1,7 @@
-import { redirect } from 'next/navigation'
-import { getAuthContext } from '@/server/auth/context'
 import RelatoriosClient from './RelatoriosClient'
 
-export default async function RelatoriosPage() {
-  const ctx = await getAuthContext()
-  if (!ctx) redirect('/login')
+// Página "casca" (estática): quem não está logado é mandado pro /login pelo
+// proxy.ts; os DADOS são protegidos nas rotas /api (withAuth + RLS).
+export default function RelatoriosPage() {
   return <RelatoriosClient />
 }

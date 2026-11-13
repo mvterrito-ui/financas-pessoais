@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, type LucideIcon } from 'lucide-react'
+import { invalidarSincronizacao } from '@/lib/sincronizar'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -52,6 +53,8 @@ export function CarteiraTickers({ config: c }: { config: CarteiraConfig }) {
 
   const api = useCallback(
     async (url: string, init?: RequestInit) => {
+      // Mexeu num investimento -> o Patrimônio sincroniza na próxima visita.
+      if (init?.method && init.method !== 'GET') invalidarSincronizacao()
       const res = await fetch(url, init)
       if (res.status === 401) {
         router.push('/login')

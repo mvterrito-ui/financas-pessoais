@@ -1,6 +1,5 @@
 import { type ReactNode } from 'react'
 import { type LucideIcon } from 'lucide-react'
-import { Sidebar } from './Sidebar'
 
 interface PageLayoutProps {
   title: string
@@ -10,7 +9,8 @@ interface PageLayoutProps {
   children: ReactNode
 }
 
-// Moldura padrão de toda página interna: sidebar + cabeçalho + conteúdo.
+// Cabeçalho + conteúdo de toda página interna. O Sidebar fica no AppShell
+// (layout raiz), pra não recarregar a cada navegação.
 export function PageLayout({
   title,
   description,
@@ -19,8 +19,6 @@ export function PageLayout({
   children,
 }: PageLayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex items-center justify-between gap-4 border-b border-border bg-card px-6 py-4">
           <div className="flex items-center gap-3">
@@ -40,6 +38,5 @@ export function PageLayout({
         </header>
         <main className="animate-fade-in flex-1 overflow-y-auto p-6">{children}</main>
       </div>
-    </div>
   )
 }
