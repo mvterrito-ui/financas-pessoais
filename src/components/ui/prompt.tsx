@@ -5,6 +5,7 @@ import { Modal } from './modal'
 import { Input } from './input'
 import { MoneyInput } from './money-input'
 import { NumberField } from './number-field'
+import { Select } from './select'
 import { Label } from './label'
 import { Button } from './button'
 
@@ -14,11 +15,14 @@ import { Button } from './button'
 //       if (!v) return  // cancelou
 // type 'money'  -> MoneyInput (máscara 1.234,56; use `prefixo` "R$"/"US$")
 // type 'number' -> NumberField (vírgula decimal; `casas`, `sufixo` "%")
-// O valor devolvido é sempre string com PONTO decimal (Number() funciona).
+// type 'select' -> Select com `options`
+// `valor` = valor inicial (ex.: renomear). Números saem com PONTO decimal.
 type Field = {
   name: string
   label: string
-  type?: 'text' | 'number' | 'money'
+  type?: 'text' | 'number' | 'money' | 'select'
+  options?: { value: string; label: string }[]
+  valor?: string
   placeholder?: string
   prefixo?: string
   sufixo?: string
@@ -36,7 +40,11 @@ export function PromptProvider({ children }: { children: ReactNode }) {
 
   function ask(c: Config) {
     setCfg(c)
-    setVals(Object.fromEntries(c.fields.map((f) => [f.name, ''])))
+    setVals(
+      Object.fromEntries(
+        c.fields.map((f) => [f.name, f.valor ?? (f.type === 'select' ? (f.options?.[0]?.value ?? '') : '')]),
+      ),
+    )
     return new Promise<Valores | null>((res) => {
       resolver.current = res
     })
@@ -63,7 +71,20 @@ export function PromptProvider({ children }: { children: ReactNode }) {
             {cfg.fields.map((f, i) => (
               <div key={f.name} className="space-y-1.5">
                 <Label htmlFor={`prompt-${f.name}`}>{f.label}</Label>
-                {f.type === 'money' ? (
+                {f.type === 'select' ? (
+                  <Select
+                    id={`prompt-${f.name}`}
+                    value={vals[f.name] ?? ''}
+                    onChange={(e) => setVals((v) => ({ ...v, [f.name]: e.target.value }))}
+                    autoFocus={i === 0}
+                  >
+                    {f.options?.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </Select>
+                ) : f.type === 'money' ? (
                   <MoneyInput
                     id={`prompt-${f.name}`}
                     prefixo={f.prefixo}
