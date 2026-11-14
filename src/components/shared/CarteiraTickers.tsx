@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, type LucideIcon } from 'lucide-react'
 import { invalidarSincronizacao } from '@/lib/sincronizar'
+import { NovoAtivoDialog, type NovoAtivo, type TipoAtivo } from './NovoAtivoDialog'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -11,7 +12,6 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { MoneyCommit } from '@/components/ui/money-input'
 import { NumberCommit } from '@/components/ui/number-field'
-import { usePromptDialog } from '@/components/ui/prompt'
 import { formatBRL } from '@/server/fluxo/fluxo.calc'
 import {
   investido,
@@ -37,6 +37,8 @@ export type CarteiraConfig = {
   vazioDescricao: string
   tickerExemplo: string
   qtdLabel: string
+  /** Pra busca/confirmação do código (e aviso se o tipo não bater). */
+  tipoAtivo: TipoAtivo
 }
 
 /**
@@ -46,7 +48,6 @@ export type CarteiraConfig = {
 export function CarteiraTickers({ config: c }: { config: CarteiraConfig }) {
   const Icon = c.icon
   const router = useRouter()
-  const ask = usePromptDialog()
   const [itens, setItens] = useState<Fii[]>([])
   const [quotes, setQuotes] = useState<Quotes>({})
   const [erro, setErro] = useState<string | null>(null)
@@ -102,24 +103,14 @@ export function CarteiraTickers({ config: c }: { config: CarteiraConfig }) {
     }
   }
 
-  async function novo() {
-    const v = await ask({
-      title: c.novoLabel,
-      fields: [
-        { name: 'ticker', label: 'Ticker', placeholder: c.tickerExemplo },
-        { name: 'quantidade', label: c.qtdLabel, type: 'number', casas: 4 },
-        { name: 'preco_medio', label: 'Preço médio', type: 'money', prefixo: 'R$' },
-      ],
-    })
-    if (!v?.ticker) return
+  const [novoAberto, setNovoAberto] = useState(false)
+  const novo = () => setNovoAberto(true)
+
+  async function salvarNovo(a: NovoAtivo) {
     await api(c.api, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ticker: v.ticker,
-        quantidade: Number(v.quantidade) || 0,
-        preco_medio: Number(v.preco_medio) || 0,
-      }),
+      body: JSON.stringify(a),
     })
     await carregar()
   }
@@ -185,7 +176,8 @@ export function CarteiraTickers({ config: c }: { config: CarteiraConfig }) {
         />
       ) : (
         <Card className="overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-max text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Ticker</th>
@@ -273,8 +265,18 @@ export function CarteiraTickers({ config: c }: { config: CarteiraConfig }) {
               </tr>
             </tfoot>
           </table>
+          </div>
         </Card>
       )}
+      <NovoAtivoDialog
+        open={novoAberto}
+        tipo={c.tipoAtivo}
+        titulo={c.novoLabel}
+        qtdLabel={c.qtdLabel}
+        exemplo={c.tickerExemplo}
+        onClose={() => setNovoAberto(false)}
+        onSalvar={salvarNovo}
+      />
     </PageLayout>
   )
 }

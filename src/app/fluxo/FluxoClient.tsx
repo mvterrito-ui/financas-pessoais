@@ -441,7 +441,8 @@ export default function FluxoClient() {
         />
       ) : (
         <Card className="overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-max text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Data</th>
@@ -521,6 +522,7 @@ export default function FluxoClient() {
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
 

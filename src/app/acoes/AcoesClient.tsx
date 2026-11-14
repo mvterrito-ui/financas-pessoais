@@ -18,6 +18,7 @@ export default function AcoesClient() {
         vazioDescricao: 'Adicione suas ações (ticker, quantidade e preço médio).',
         tickerExemplo: 'PETR4',
         qtdLabel: 'Quantas ações?',
+        tipoAtivo: 'acao',
       }}
     />
   )

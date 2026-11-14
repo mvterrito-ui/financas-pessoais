@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { parcial } from '@/server/zod-util'
 
 const nome = z.string().trim().min(1, 'Informe um nome').max(80)
 const uuid = z.string().uuid()
@@ -10,14 +11,14 @@ export const grupoCreateSchema = z.object({
   descricao: z.string().trim().max(200).nullable().optional(),
   ordem: z.number().int().optional().default(0),
 })
-export const grupoUpdateSchema = grupoCreateSchema.partial()
+export const grupoUpdateSchema = parcial(grupoCreateSchema)
 
 export const categoriaCreateSchema = z.object({
   group_id: uuid,
   name: nome,
   ordem: z.number().int().optional().default(0),
 })
-export const categoriaUpdateSchema = categoriaCreateSchema.omit({ group_id: true }).partial()
+export const categoriaUpdateSchema = parcial(categoriaCreateSchema.omit({ group_id: true }))
 
 export const itemCreateSchema = z.object({
   group_id: uuid,
@@ -25,10 +26,9 @@ export const itemCreateSchema = z.object({
   name: nome,
   ordem: z.number().int().optional().default(0),
 })
-export const itemUpdateSchema = itemCreateSchema
-  .omit({ group_id: true })
-  .partial()
-  .extend({ oculto: z.boolean().optional() })
+export const itemUpdateSchema = parcial(itemCreateSchema.omit({ group_id: true })).extend({
+  oculto: z.boolean().optional(),
+})
 
 // Grava vários meses de um item de uma vez. valor null = esvaziar o mês.
 export const valoresSetSchema = z.object({

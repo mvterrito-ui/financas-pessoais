@@ -48,3 +48,25 @@ export function valorAtual(itens: CryptoSummary[]): number {
   const t = totais(itens.filter((i) => i.ano === ano))
   return t.aplicado + t.resultado
 }
+
+// ---- Edição por "valor atual" ------------------------------------------
+// No banco ficam aplicado + resultado; na tela o usuário digita o VALOR ATUAL
+// e o lucro/prejuízo sai sozinho (resultado = atual − aplicado).
+export const valorAtualLinha = (l: Pick<CryptoSummary, 'aplicado' | 'resultado'>) =>
+  Number(l.aplicado) + Number(l.resultado)
+
+/**
+ * Novo { aplicado, resultado } ao editar um campo:
+ *  - 'atual'    -> mantém o aplicado, recalcula o resultado;
+ *  - 'aplicado' -> mantém o valor atual (o que a carteira vale hoje), recalcula o resultado.
+ */
+export function aoEditar(
+  linha: Pick<CryptoSummary, 'aplicado' | 'resultado'> | undefined,
+  campo: 'aplicado' | 'atual',
+  valor: number,
+): { aplicado: number; resultado: number } {
+  const aplicado = Number(linha?.aplicado ?? 0)
+  const atual = linha ? valorAtualLinha(linha) : 0
+  if (campo === 'atual') return { aplicado, resultado: valor - aplicado }
+  return { aplicado: valor, resultado: (linha ? atual : valor) - valor }
+}

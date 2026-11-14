@@ -52,7 +52,8 @@ export function campoInputClass(tamanho: Tamanho = 'md') {
   return cn(
     'w-full min-w-0 bg-transparent text-right font-semibold tabular-nums text-foreground outline-none',
     'placeholder:font-normal placeholder:text-muted-foreground/50 disabled:cursor-not-allowed disabled:opacity-50',
-    tamanho === 'sm' ? 'text-sm' : 'text-base',
+    // ≥16px no celular: abaixo disso o Safari do iPhone dá zoom ao focar.
+    tamanho === 'sm' ? 'text-base md:text-sm' : 'text-base',
   )
 }
 

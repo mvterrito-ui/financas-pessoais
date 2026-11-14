@@ -10,6 +10,7 @@ import {
   Plus,
   Repeat,
   Trash2,
+  MoreHorizontal,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { MoneyCommit } from '@/components/ui/money-input'
@@ -39,7 +40,8 @@ const fmtPct = (p: number | null) =>
   p === null ? '—' : `${p.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
 
 // Larguras: 1ª coluna fixa (sticky) + 12 meses + Total + Média.
-const COL_NOME = 'sticky left-0 z-10 w-60 min-w-60 max-w-60 bg-card'
+// No celular a 1ª coluna é mais estreita pra sobrar espaço pros meses.
+const COL_NOME = 'sticky left-0 z-10 w-40 min-w-40 max-w-40 bg-card sm:w-60 sm:min-w-60 sm:max-w-60'
 const COL_MES = 'w-32 min-w-32 px-1.5'
 // border-separate (necessário pro sticky) ignora borda em <tr>: vai em cada <td>.
 const LINHA = 'border-t border-border'
@@ -73,8 +75,47 @@ function BotaoIcone({
 
 // Ações que aparecem ao passar o mouse na linha (sempre visíveis no celular).
 // No desktop ficam FORA do fluxo até o hover (não roubam espaço do nome).
-const ACOES =
-  'flex shrink-0 items-center sm:hidden sm:group-hover/linha:flex sm:group-focus-within/linha:flex'
+const ACOES_DESKTOP = 'sm:hidden sm:group-hover/linha:flex sm:group-focus-within/linha:flex'
+
+/**
+ * Ações da linha. Desktop: aparecem no hover. Celular (sem hover): botão "⋯"
+ * abre uma barrinha flutuante com os botões; tocar em uma ação fecha.
+ */
+function Acoes({
+  aberto,
+  onAlternar,
+  children,
+}: {
+  aberto: boolean
+  onAlternar: () => void
+  children: ReactNode
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Ações"
+        aria-expanded={aberto}
+        onClick={onAlternar}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted sm:hidden"
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      <div
+        onClick={() => aberto && onAlternar()}
+        className={cn(
+          'shrink-0 items-center',
+          aberto
+            ? 'absolute right-9 top-1/2 z-30 flex -translate-y-1/2 rounded-lg border border-border bg-card p-0.5 shadow-lg sm:static sm:translate-y-0 sm:border-0 sm:p-0 sm:shadow-none'
+            : 'hidden',
+          ACOES_DESKTOP,
+        )}
+      >
+        {children}
+      </div>
+    </>
+  )
+}
 
 export function GradeAnual(props: {
   mesDestaque: number | null
@@ -98,6 +139,9 @@ export function GradeAnual(props: {
   const { mesDestaque, grupos, categorias, itens, valores, resumo: r } = props
   const [fechados, setFechados] = useState<Set<string>>(new Set())
   const [verOcultos, setVerOcultos] = useState<Set<string>>(new Set())
+  // Celular: qual linha está com o menu "⋯" aberto.
+  const [menu, setMenu] = useState<string | null>(null)
+  const alternarMenu = (id: string) => () => setMenu((m) => (m === id ? null : id))
   const alternar = (set: Set<string>, id: string) => {
     const novo = new Set(set)
     if (novo.has(id)) novo.delete(id)
@@ -139,7 +183,7 @@ export function GradeAnual(props: {
               {item.oculto && <EyeOff className="mr-1 inline h-3 w-3" />}
               {item.name}
             </span>
-            <div className={ACOES}>
+            <Acoes aberto={menu === `i-${item.id}`} onAlternar={alternarMenu(`i-${item.id}`)}>
               <BotaoIcone titulo="Repetir nos meses seguintes (preenche os vazios)" onClick={() => props.onRepetir(item)}>
                 <Repeat className="h-3.5 w-3.5" />
               </BotaoIcone>
@@ -158,7 +202,7 @@ export function GradeAnual(props: {
               <BotaoIcone titulo="Remover (apaga do histórico)" perigo onClick={() => props.onRemoverItem(item)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </BotaoIcone>
-            </div>
+            </Acoes>
           </div>
         </td>
         {r.meses.map((mes, i) => (
@@ -235,7 +279,7 @@ export function GradeAnual(props: {
                         />
                         <span className="truncate font-semibold">{g.name}</span>
                       </button>
-                      <div className={ACOES}>
+                      <Acoes aberto={menu === `g-${g.id}`} onAlternar={alternarMenu(`g-${g.id}`)}>
                         <BotaoIcone titulo="Novo item" onClick={() => props.onNovoItem(g)}>
                           <Plus className="h-3.5 w-3.5" />
                         </BotaoIcone>
@@ -248,7 +292,7 @@ export function GradeAnual(props: {
                         <BotaoIcone titulo="Remover grupo" perigo onClick={() => props.onRemoverGrupo(g)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </BotaoIcone>
-                      </div>
+                      </Acoes>
                     </div>
                   </td>
                   <td colSpan={14} className="border-t-4 border-background px-3 py-2.5">
@@ -299,7 +343,7 @@ export function GradeAnual(props: {
                                 <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                   {c.name}
                                 </span>
-                                <div className={ACOES}>
+                                <Acoes aberto={menu === `c-${c.id}`} onAlternar={alternarMenu(`c-${c.id}`)}>
                                   <BotaoIcone titulo={`Novo item em ${c.name}`} onClick={() => props.onNovoItem(g, c.id)}>
                                     <Plus className="h-3.5 w-3.5" />
                                   </BotaoIcone>
@@ -309,7 +353,7 @@ export function GradeAnual(props: {
                                   <BotaoIcone titulo="Remover categoria" perigo onClick={() => props.onRemoverCategoria(c)}>
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </BotaoIcone>
-                                </div>
+                                </Acoes>
                               </div>
                             </td>
                             <td colSpan={14} className={cn(LINHA, 'bg-muted/30')} />

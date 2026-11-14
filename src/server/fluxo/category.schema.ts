@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { parcial } from '@/server/zod-util'
 
 // Categoria: Salário, Mercado, Faculdade... Cada uma é de entrada OU de saída.
 export const categoryCreateSchema = z.object({
@@ -6,7 +7,7 @@ export const categoryCreateSchema = z.object({
   tipo: z.enum(['entrada', 'saida']),
 })
 
-export const categoryUpdateSchema = categoryCreateSchema.partial()
+export const categoryUpdateSchema = parcial(categoryCreateSchema)
 
 export type CategoryCreate = z.infer<typeof categoryCreateSchema>
 export type CategoryUpdate = z.infer<typeof categoryUpdateSchema>

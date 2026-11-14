@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { parcial } from '@/server/zod-util'
 
 // Um balde do orçamento (fatia da renda).
 export const budgetCreateSchema = z.object({
@@ -7,7 +8,7 @@ export const budgetCreateSchema = z.object({
   ordem: z.number().int().optional().default(0),
 })
 
-export const budgetUpdateSchema = budgetCreateSchema.partial()
+export const budgetUpdateSchema = parcial(budgetCreateSchema)
 
 export type BudgetCreate = z.infer<typeof budgetCreateSchema>
 export type BudgetUpdate = z.infer<typeof budgetUpdateSchema>

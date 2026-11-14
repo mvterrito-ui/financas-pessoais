@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { parcial } from '@/server/zod-util'
 
 export const fixedIncomeCreateSchema = z.object({
   nome: z.string().trim().min(1, 'Informe o nome').max(80),
@@ -13,7 +14,7 @@ export const fixedIncomeCreateSchema = z.object({
     .nullable(),
 })
 
-export const fixedIncomeUpdateSchema = fixedIncomeCreateSchema.partial()
+export const fixedIncomeUpdateSchema = parcial(fixedIncomeCreateSchema)
 
 export type FixedIncomeCreate = z.infer<typeof fixedIncomeCreateSchema>
 export type FixedIncomeUpdate = z.infer<typeof fixedIncomeUpdateSchema>

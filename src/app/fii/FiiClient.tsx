@@ -18,6 +18,7 @@ export default function FiiClient() {
         vazioDescricao: 'Adicione seus fundos imobiliários (ticker, cotas e preço médio).',
         tickerExemplo: 'BTLG11',
         qtdLabel: 'Quantas cotas?',
+        tipoAtivo: 'fii',
       }}
     />
   )

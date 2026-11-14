@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { parcial } from '@/server/zod-util'
 
 export const placeCreateSchema = z.object({
   name: z.string().trim().min(1, 'Informe um nome').max(60),
@@ -6,7 +7,7 @@ export const placeCreateSchema = z.object({
   moeda: z.enum(['BRL', 'USD', 'EUR']).optional().default('BRL'),
 })
 
-export const placeUpdateSchema = placeCreateSchema.partial().extend({
+export const placeUpdateSchema = parcial(placeCreateSchema).extend({
   // Ocultar a partir do mês (AAAA-MM-01) ou null pra mostrar de novo.
   oculto_desde: z
     .string()

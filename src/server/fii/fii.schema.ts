@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { parcial } from '@/server/zod-util'
 
 export const fiiCreateSchema = z.object({
   ticker: z
@@ -11,7 +12,7 @@ export const fiiCreateSchema = z.object({
   preco_medio: z.number().min(0),
 })
 
-export const fiiUpdateSchema = fiiCreateSchema.partial()
+export const fiiUpdateSchema = parcial(fiiCreateSchema)
 
 export type FiiCreate = z.infer<typeof fiiCreateSchema>
 export type FiiUpdate = z.infer<typeof fiiUpdateSchema>

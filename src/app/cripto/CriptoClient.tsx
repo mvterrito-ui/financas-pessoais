@@ -17,6 +17,8 @@ import { usePromptDialog } from '@/components/ui/prompt'
 import { formatBRL } from '@/server/fluxo/fluxo.calc'
 import {
   anosDisponiveis,
+  aoEditar,
+  valorAtualLinha,
   retornoPct,
   somaItens,
   totais,
@@ -86,19 +88,15 @@ export default function CriptoClient() {
   const linhas = useMemo(() => itens.filter((i) => i.ano === ano), [itens, ano])
   const t = totais(linhas)
 
-  async function salvar(exchange: string, campo: 'aplicado' | 'resultado', valor: string) {
-    const atual = linhas.find((l) => l.exchange === exchange)
+  // Na tela: Aplicado e Valor atual. O lucro/prejuízo (resultado) é calculado.
+  async function salvar(exchange: string, campo: 'aplicado' | 'atual', valor: string) {
+    const linha = linhas.find((l) => l.exchange === exchange)
     setErro(null)
     try {
       await api('/api/crypto', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          exchange,
-          ano,
-          aplicado: Number(campo === 'aplicado' ? valor : (atual?.aplicado ?? 0)) || 0,
-          resultado: Number(campo === 'resultado' ? valor : (atual?.resultado ?? 0)) || 0,
-        }),
+        body: JSON.stringify({ exchange, ano, ...aoEditar(linha, campo, Number(valor) || 0) }),
       })
       await carregar()
     } catch (e) {
@@ -253,12 +251,14 @@ export default function CriptoClient() {
         />
       ) : (
         <Card className="overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-max text-sm">
             <thead className="border-b border-border bg-muted/40 text-left text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Corretora</th>
-                <th className="px-4 py-3 font-medium">Aplicado (US$)</th>
-                <th className="px-4 py-3 font-medium">Lucro/Prejuízo (US$)</th>
+                <th className="px-4 py-3 font-medium">Aplicado</th>
+                <th className="px-4 py-3 font-medium">Valor atual</th>
+                <th className="px-4 py-3 font-medium">Lucro/Prejuízo</th>
                 <th className="px-4 py-3 font-medium">Retorno</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -289,13 +289,18 @@ export default function CriptoClient() {
                     <td className="px-4 py-3">
                       <MoneyCommit
                         prefixo="US$"
-                        permitirNegativo
-                        title="Prejuízo? Digite - pra deixar negativo"
-                        aria-label={`Resultado em ${l.exchange}`}
-                        inicial={l.resultado}
+                        title="Quanto vale hoje na corretora"
+                        aria-label={`Valor atual em ${l.exchange}`}
+                        inicial={valorAtualLinha(l)}
                         className="w-36"
-                        onCommit={(v) => salvar(l.exchange, 'resultado', v)}
+                        onCommit={(v) => salvar(l.exchange, 'atual', v)}
                       />
+                    </td>
+                    <td
+                      className={`whitespace-nowrap px-4 py-3 font-semibold tabular-nums ${Number(l.resultado) >= 0 ? 'text-emerald-600' : 'text-destructive'}`}
+                    >
+                      {Number(l.resultado) >= 0 ? '+' : ''}
+                      {fmtUSD(Number(l.resultado))}
                     </td>
                     <td
                       className={`px-4 py-3 font-semibold tabular-nums ${Number(l.resultado) >= 0 ? 'text-emerald-600' : 'text-destructive'}`}
@@ -322,6 +327,7 @@ export default function CriptoClient() {
               <tr className="border-t border-border bg-muted/30 font-semibold">
                 <td className="px-4 py-3">Total</td>
                 <td className="px-4 py-3 tabular-nums">{fmtUSD(t.aplicado)}</td>
+                <td className="px-4 py-3 tabular-nums">{fmtUSD(t.aplicado + t.resultado)}</td>
                 <td
                   className={`px-4 py-3 tabular-nums ${t.resultado >= 0 ? 'text-emerald-600' : 'text-destructive'}`}
                 >
@@ -331,6 +337,7 @@ export default function CriptoClient() {
               </tr>
             </tfoot>
           </table>
+          </div>
         </Card>
       )}
 
@@ -384,9 +391,24 @@ export default function CriptoClient() {
             </div>
           )}
           {detalhe && (
-            <p className="text-xs text-muted-foreground">
-              Aplicado informado na corretora: {fmtUSD(Number(detalhe.aplicado))}.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>
+                Aplicado: {fmtUSD(Number(detalhe.aplicado))} · Valor atual na tabela:{' '}
+                {fmtUSD(valorAtualLinha(detalhe))}
+              </span>
+              {detItens.length > 0 && somaItens(detItens) !== valorAtualLinha(detalhe) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    await salvar(detalhe.exchange, 'atual', String(somaItens(detItens)))
+                    setDetalhe(null)
+                  }}
+                >
+                  Usar a soma como valor atual
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </Modal>

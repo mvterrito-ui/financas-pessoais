@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { parcial } from '@/server/zod-util'
 
 // Campos crus de um lançamento (sem regras cruzadas). Base reutilizável:
 // o create adiciona o refine; o update vira partial a partir DAQUI
@@ -24,7 +25,7 @@ export const transactionCreateSchema = transactionBase.refine(
 )
 
 // Pra editar: tudo opcional (manda só o que mudou).
-export const transactionUpdateSchema = transactionBase.partial()
+export const transactionUpdateSchema = parcial(transactionBase)
 
 // Filtros da listagem (vêm da URL: ?de=...&ate=...&tipo=...).
 const dataISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use o formato AAAA-MM-DD')

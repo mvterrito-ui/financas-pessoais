@@ -1,5 +1,8 @@
+'use client'
+
 import { type ReactNode } from 'react'
-import { type LucideIcon } from 'lucide-react'
+import { Menu, type LucideIcon } from 'lucide-react'
+import { useAbrirMenu } from './AppShell'
 
 interface PageLayoutProps {
   title: string
@@ -18,25 +21,34 @@ export function PageLayout({
   actions,
   children,
 }: PageLayoutProps) {
+  const abrirMenu = useAbrirMenu()
   return (
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between gap-4 border-b border-border bg-card px-6 py-4">
-          <div className="flex items-center gap-3">
+        <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border bg-card px-4 py-3 md:px-6 md:py-4">
+          <div className="flex min-w-0 items-center gap-2.5 md:gap-3">
+            <button
+              type="button"
+              onClick={abrirMenu}
+              aria-label="Abrir menu"
+              className="-ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-foreground hover:bg-muted md:hidden"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
             {Icon && (
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:flex">
                 <Icon className="h-5 w-5" />
               </span>
             )}
-            <div>
-              <h1 className="text-xl font-semibold leading-tight">{title}</h1>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-semibold leading-tight md:text-xl">{title}</h1>
               {description && (
-                <p className="text-sm text-muted-foreground">{description}</p>
+                <p className="truncate text-xs text-muted-foreground md:text-sm">{description}</p>
               )}
             </div>
           </div>
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
+          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
         </header>
-        <main className="animate-fade-in flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="animate-fade-in flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
   )
 }

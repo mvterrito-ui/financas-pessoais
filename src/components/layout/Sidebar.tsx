@@ -78,7 +78,7 @@ function iniciais(nome?: string | null): string {
   return i.toUpperCase()
 }
 
-export function Sidebar() {
+export function Sidebar({ aberto = false, onFechar }: { aberto?: boolean; onFechar?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createSupabaseBrowserClient()
@@ -139,7 +139,17 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="flex w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
+      {/* Celular: fundo escuro atrás da gaveta (toque fecha) */}
+      {aberto && (
+        <div className="fixed inset-0 z-40 bg-slate-950/50 md:hidden" onClick={onFechar} aria-hidden />
+      )}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] shrink-0 flex-col bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-200',
+          'md:static md:z-auto md:w-60 md:translate-x-0 md:shadow-none',
+          aberto ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
         {/* Marca */}
         <div className="flex items-center gap-2.5 px-5 py-5">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-accent/20 text-xl">
@@ -179,6 +189,7 @@ export function Sidebar() {
                     <Link
                       key={to}
                       href={to}
+                      onClick={onFechar}
                       className={cn(
                         'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                         ativo
