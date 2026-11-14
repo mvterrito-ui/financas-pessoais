@@ -4,7 +4,7 @@ App **multi-tenant** de finanças pessoais: fluxo de caixa, orçamento, patrimô
 
 Construído como projeto de estudo de **backend** (por alguém que vem do **QA/front-end**), com foco em arquitetura em camadas, validação ponta a ponta e segurança por **Row Level Security**.
 
-> 🔐 **Acesso fechado:** a instância publicada **não permite criar novos usuários** (signup desligado no Supabase) — é de uso pessoal. Para explorar o app localmente, **num projeto Supabase de teste** (nunca no de produção — a senha do demo é pública), use `npm run seed:demo -- --sim`, que cria o usuário **"João da Silva"** (`joao.demo@gmail.com` / `demo123456`) com dados fictícios — via API admin, funciona mesmo com o cadastro bloqueado.
+> 🔐 **Acesso fechado:** a instância publicada **não permite criar novos usuários** (signup desligado no Supabase) — é de uso pessoal. Para explorar o app localmente, **num projeto Supabase de teste** (nunca no de produção), use `npm run seed:demo -- --sim`, que cria um usuário de demonstração com dados fictícios e mostra o login e uma senha aleatória no terminal — via API admin, funciona mesmo com o cadastro bloqueado.
 
 ## ✨ Funcionalidades
 
@@ -71,7 +71,8 @@ npm install
 #    aplique os arquivos em supabase/migrations/ em ordem
 
 # 4. usuário + dados de demonstração (como o cadastro é fechado, é assim
-#    que se cria o login pra testar): joao.demo@gmail.com / demo123456
+#    que se cria o login pra testar). O login e a senha aparecem no terminal;
+#    pra escolher a senha: DEMO_SENHA=suasenha npm run seed:demo -- --sim
 npm run seed:demo -- --sim   # só em projeto Supabase de TESTE
 
 # 5. sobe o app e entre com o login do demo

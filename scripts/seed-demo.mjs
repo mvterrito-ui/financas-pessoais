@@ -18,11 +18,14 @@ if (!process.argv.includes('--sim')) {
   )
   process.exit(1)
 }
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 
 const DEMO_EMAIL = 'joao.demo@gmail.com'
-const DEMO_SENHA = 'demo123456'
+// Senha NUNCA fixa no código (o repositório é público): vem de DEMO_SENHA ou é
+// gerada aleatória a cada execução e mostrada no fim.
+//   DEMO_SENHA=minhasenha npm run seed:demo -- --sim
+const DEMO_SENHA = process.env.DEMO_SENHA || randomBytes(9).toString('base64url')
 const DEMO_NOME = 'João da Silva'
 const ANO = 2026
 const MESES = ['01', '02', '03', '04', '05', '06'] // Jan..Jun/2026
@@ -58,10 +61,12 @@ if (!user) {
   user = data.user
   console.log(`👤 Usuário demo criado: ${DEMO_EMAIL}`)
 } else {
-  console.log(`👤 Usuário demo já existe: ${DEMO_EMAIL}`)
+  // Já existe: troca a senha pela desta execução (a antiga pode ter vazado).
+  ok((await supabase.auth.admin.updateUserById(user.id, { password: DEMO_SENHA })).error, 'updateUser')
+  console.log(`👤 Usuário demo já existia: ${DEMO_EMAIL} (senha trocada)`)
 }
 
-// o gatilho handle_new_user já criou tenant + baldes + lugares
+// o gatilho handle_new_user já criou tenant + profile
 const { data: profile, error: errProf } = await supabase
   .from('profile')
   .select('tenant_id')
