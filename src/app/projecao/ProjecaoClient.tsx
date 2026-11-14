@@ -21,7 +21,7 @@ import {
   type WealthSnapshot,
 } from '@/server/patrimonio/patrimonio.calc'
 import {
-  taxaMensalHistorica,
+  taxaMensalComparavel,
   mensalParaAnual,
   projetar,
 } from '@/server/patrimonio/projecao.calc'
@@ -95,8 +95,21 @@ export default function ProjecaoClient() {
     return evolucaoBRL(filtrados, moedaDoLugar, rates)
   }, [snaps, selecionados, moedaDoLugar, rates])
 
-  // Taxa MENSAL do histórico e taxa em uso (% ao mês, ajustável na mão).
-  const taxaHist = useMemo(() => taxaMensalHistorica(serie), [serie])
+  // Taxa MENSAL do histórico ("igual com igual": bem novo não vira rendimento)
+  // e taxa em uso (% ao mês, ajustável na mão).
+  const taxaHist = useMemo(
+    () =>
+      taxaMensalComparavel(
+        snaps
+          .filter((s) => selecionados.has(s.place_id))
+          .map((s) => ({
+            mes: s.mes,
+            place_id: s.place_id,
+            valor: emBRL(Number(s.valor), moedaDoLugar[s.place_id] ?? 'BRL', rates),
+          })),
+      ),
+    [snaps, selecionados, moedaDoLugar, rates],
+  )
   const taxaAuto = taxaHist === null ? null : taxaHist * 100 // % ao mês
   const taxaPct = taxaManual ? Number(taxaInput) || 0 : taxaAuto ?? 0 // % ao mês
   const anualEquivalente = mensalParaAnual(taxaPct / 100) * 100 // só pra exibir

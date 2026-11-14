@@ -40,13 +40,16 @@ export function somaItens(itens: CryptoItem[]): number {
 }
 
 // ---- Valor atual (pro Patrimônio) -------------------------------------
-// Posição de hoje = aplicado + resultado das corretoras do ANO MAIS RECENTE
-// com dados (em US$). Anos anteriores são histórico, não somam.
+// Posição de hoje (US$) = soma, POR CORRETORA, de aplicado + resultado do ano
+// mais recente DAQUELA corretora. (Antes usava o ano mais alto geral: uma
+// corretora que ainda não tinha linha no ano novo sumia do patrimônio.)
 export function valorAtual(itens: CryptoSummary[]): number {
-  if (itens.length === 0) return 0
-  const ano = Math.max(...itens.map((i) => i.ano))
-  const t = totais(itens.filter((i) => i.ano === ano))
-  return t.aplicado + t.resultado
+  const ultima = new Map<string, CryptoSummary>()
+  for (const i of itens) {
+    const atual = ultima.get(i.exchange)
+    if (!atual || i.ano > atual.ano) ultima.set(i.exchange, i)
+  }
+  return [...ultima.values()].reduce((s, i) => s + Number(i.aplicado) + Number(i.resultado), 0)
 }
 
 // ---- Edição por "valor atual" ------------------------------------------

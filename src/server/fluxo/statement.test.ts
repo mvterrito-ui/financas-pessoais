@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseStatement } from './statement'
+import { parseStatement, dividirLinha, parseNumero } from './statement'
 
 const ofx = `OFXHEADER:100
 <OFX><BANKTRANLIST>
@@ -30,5 +30,34 @@ describe('statement parser', () => {
     expect(formato).toBe('CSV')
     expect(itens[0]).toMatchObject({ data: '2026-05-15', valor: 123.45, tipo: 'saida' })
     expect(itens[1]).toMatchObject({ valor: 50, tipo: 'entrada' })
+  })
+})
+
+describe('importação: correções de robustez', () => {
+  it('duas compras iguais no mesmo arquivo não colidem (sufixo #2), de forma determinística', () => {
+    const csv = 'data;descricao;valor\n01/11/2026;Uber;15,90\n01/11/2026;Uber;15,90\n'
+    const a = parseStatement(csv).itens.map((i) => i.external_id)
+    const b = parseStatement(csv).itens.map((i) => i.external_id)
+    expect(a).toHaveLength(2)
+    expect(new Set(a).size).toBe(2)
+    expect(a[1]).toMatch(/#2$/)
+    expect(b).toEqual(a) // reimportar o mesmo arquivo gera os mesmos ids
+  })
+
+  it('CSV respeita aspas (vírgula dentro da descrição)', () => {
+    expect(dividirLinha('01/11/2026,"Padaria, centro",12.50', ',')).toEqual([
+      '01/11/2026',
+      'Padaria, centro',
+      '12.50',
+    ])
+    expect(dividirLinha('"diz ""oi""";1', ';')).toEqual(['diz "oi"', '1'])
+  })
+
+  it('número: milhar BR com ponto, decimal com vírgula ou ponto', () => {
+    expect(parseNumero('1.234')).toBe(1234)
+    expect(parseNumero('1.234.567')).toBe(1234567)
+    expect(parseNumero('1.234,56')).toBe(1234.56)
+    expect(parseNumero('12.50')).toBe(12.5)
+    expect(parseNumero('-15,90')).toBe(-15.9)
   })
 })

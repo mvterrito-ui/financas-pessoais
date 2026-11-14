@@ -105,23 +105,31 @@ export default function CriptoClient() {
   }
 
   async function novaCorretora() {
-    const v = await ask({
-      title: 'Nova corretora',
-      fields: [{ name: 'exchange', label: 'Nome da corretora', placeholder: 'Binance' }],
-    })
-    if (!v?.exchange) return
-    await api('/api/crypto', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ exchange: v.exchange, ano, aplicado: 0, resultado: 0 }),
-    })
-    await carregar()
+    try {
+      const v = await ask({
+        title: 'Nova corretora',
+        fields: [{ name: 'exchange', label: 'Nome da corretora', placeholder: 'Binance' }],
+      })
+      if (!v?.exchange) return
+      await api('/api/crypto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exchange: v.exchange, ano, aplicado: 0, resultado: 0 }),
+      })
+      await carregar()
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   async function excluir(id: string) {
-    if (!confirm('Remover esta corretora deste ano?')) return
-    await api(`/api/crypto/${id}`, { method: 'DELETE' })
-    await carregar()
+    try {
+      if (!confirm('Remover esta corretora deste ano?')) return
+      await api(`/api/crypto/${id}`, { method: 'DELETE' })
+      await carregar()
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   // ---- detalhe da corretora ----
@@ -133,46 +141,67 @@ export default function CriptoClient() {
   )
 
   async function abrirDetalhe(l: CryptoSummary) {
+    setDetItens([]) // não mostrar (nem somar) os itens da corretora anterior
     setDetalhe(l)
     setErro(null)
-    await carregarDetalhe(l.id)
+    try {
+      await carregarDetalhe(l.id)
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   async function novoItem() {
-    if (!detalhe) return
-    const v = await ask({
-      title: 'Novo item',
-      fields: [
-        { name: 'label', label: 'Nome', placeholder: 'TRADE, HOLD, LTC…' },
-        { name: 'valor', label: 'Valor', type: 'money', prefixo: 'US$' },
-      ],
-    })
-    if (!v?.label) return
-    await api('/api/crypto-item', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        summary_id: detalhe.id,
-        label: v.label,
-        valor: Number(v.valor) || 0,
-        ordem: detItens.length + 1,
-      }),
-    })
-    await carregarDetalhe(detalhe.id)
+    try {
+      if (!detalhe) return
+      const v = await ask({
+        title: 'Novo item',
+        fields: [
+          { name: 'label', label: 'Nome', placeholder: 'TRADE, HOLD, LTC…' },
+          { name: 'valor', label: 'Valor', type: 'money', prefixo: 'US$' },
+        ],
+      })
+      if (!v?.label) return
+      await api('/api/crypto-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          summary_id: detalhe.id,
+          label: v.label,
+          valor: Number(v.valor) || 0,
+          ordem: detItens.length + 1,
+        }),
+      })
+      await carregarDetalhe(detalhe.id)
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
+  // Depois de salvar, recarrega os itens: a soma (e o "usar como valor atual")
+  // usava os valores antigos.
   async function salvarItem(id: string, valor: string) {
-    await api(`/api/crypto-item/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ valor: Number(valor) || 0 }),
-    })
+    if (!detalhe) return
+    try {
+      await api(`/api/crypto-item/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ valor: Number(valor) || 0 }),
+      })
+      await carregarDetalhe(detalhe.id)
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   async function excluirItem(id: string) {
-    if (!detalhe) return
-    await api(`/api/crypto-item/${id}`, { method: 'DELETE' })
-    await carregarDetalhe(detalhe.id)
+    if (!detalhe || !confirm('Remover este item do detalhamento?')) return
+    try {
+      await api(`/api/crypto-item/${id}`, { method: 'DELETE' })
+      await carregarDetalhe(detalhe.id)
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   return (
@@ -315,6 +344,8 @@ export default function CriptoClient() {
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         onClick={() => excluir(l.id)}
+                        aria-label="Remover corretora"
+                        title="Remover corretora"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -376,6 +407,8 @@ export default function CriptoClient() {
                     size="icon"
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
                     onClick={() => excluirItem(it.id)}
+                        aria-label="Remover item"
+                        title="Remover item"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

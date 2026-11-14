@@ -4,7 +4,7 @@ App **multi-tenant** de finanças pessoais: fluxo de caixa, orçamento, patrimô
 
 Construído como projeto de estudo de **backend** (por alguém que vem do **QA/front-end**), com foco em arquitetura em camadas, validação ponta a ponta e segurança por **Row Level Security**.
 
-> 🔐 **Acesso fechado:** a instância publicada **não permite criar novos usuários** (signup desligado no Supabase) — é de uso pessoal. Para explorar o app rodando localmente, use `npm run seed:demo`, que cria o usuário **"João da Silva"** (`joao.demo@gmail.com` / `demo123456`) com dados fictícios — via API admin, funciona mesmo com o cadastro bloqueado.
+> 🔐 **Acesso fechado:** a instância publicada **não permite criar novos usuários** (signup desligado no Supabase) — é de uso pessoal. Para explorar o app localmente, **num projeto Supabase de teste** (nunca no de produção — a senha do demo é pública), use `npm run seed:demo -- --sim`, que cria o usuário **"João da Silva"** (`joao.demo@gmail.com` / `demo123456`) com dados fictícios — via API admin, funciona mesmo com o cadastro bloqueado.
 
 ## ✨ Funcionalidades
 
@@ -72,7 +72,7 @@ npm install
 
 # 4. usuário + dados de demonstração (como o cadastro é fechado, é assim
 #    que se cria o login pra testar): joao.demo@gmail.com / demo123456
-npm run seed:demo
+npm run seed:demo -- --sim   # só em projeto Supabase de TESTE
 
 # 5. sobe o app e entre com o login do demo
 npm run dev
@@ -85,7 +85,7 @@ npm run dev
 | `npm run dev` | sobe em modo desenvolvimento |
 | `npm test` | roda os testes (Vitest) |
 | `npm run build` | build de produção |
-| `npm run seed:demo` | cria o usuário demo (login + dados fictícios) via admin |
+| `npm run seed:demo -- --sim` | cria o usuário demo (login + dados fictícios) via admin — **só em projeto de teste** |
 | `npm run backup` | dump do banco (`pg_dump`) |
 
 ---

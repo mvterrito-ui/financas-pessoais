@@ -24,6 +24,40 @@ export function taxaMensalHistorica(serie: PontoSerie[]): number | null {
   return Math.pow(b.total / a.total, 1 / meses) - 1
 }
 
+/**
+ * Taxa mensal "igual com igual": em cada par de meses consecutivos, compara só
+ * os lugares que têm valor NOS DOIS meses. Assim cadastrar um bem novo (ou
+ * começar a preencher um que já existia) não conta como rendimento — o
+ * primeiro×último inflava a taxa pra valores absurdos nesses casos.
+ * (Aportes feitos num lugar existente ainda entram: é crescimento real dele.)
+ */
+export function taxaMensalComparavel(
+  pontos: { mes: string; place_id: string; valor: number }[],
+): number | null {
+  const porMes = new Map<string, Map<string, number>>()
+  for (const p of pontos) {
+    const mes = p.mes.slice(0, 10)
+    const m = porMes.get(mes) ?? new Map<string, number>()
+    m.set(p.place_id, (m.get(p.place_id) ?? 0) + p.valor)
+    porMes.set(mes, m)
+  }
+  const meses = [...porMes.keys()].sort()
+  let fator = 1
+  let totalMeses = 0
+  for (let i = 1; i < meses.length; i++) {
+    const a = porMes.get(meses[i - 1])!
+    const b = porMes.get(meses[i])!
+    const comuns = [...a.keys()].filter((id) => b.has(id) && a.get(id)! > 0)
+    const sa = comuns.reduce((s, id) => s + a.get(id)!, 0)
+    const sb = comuns.reduce((s, id) => s + b.get(id)!, 0)
+    if (sa <= 0) continue
+    fator *= sb / sa
+    totalMeses += mesesEntre(meses[i - 1], meses[i])
+  }
+  if (totalMeses <= 0 || fator <= 0) return null
+  return Math.pow(fator, 1 / totalMeses) - 1
+}
+
 // Converte taxa mensal -> equivalente anual (só pra exibir "≈ Y% ao ano").
 export function mensalParaAnual(taxaMensal: number): number {
   return Math.pow(1 + taxaMensal, 12) - 1

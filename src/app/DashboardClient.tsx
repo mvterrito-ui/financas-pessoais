@@ -71,10 +71,16 @@ export default function DashboardClient() {
         router.push('/login')
         throw new Error('Sessão expirada')
       }
-      return res.json()
+      const body = await res.json().catch(() => null)
+      // Erro NUNCA vira dado: antes um 500 ({ error }) ia pro estado e o
+      // .map() quebrava a página inteira.
+      if (!res.ok) throw new Error(body?.error ?? 'Erro na requisição')
+      return body
     },
     [router],
   )
+  const [erro, setErro] = useState<string | null>(null)
+  const falhou = useCallback((e: unknown) => setErro((e as Error).message), [])
 
   // Carrega tudo (uma vez) e a cotação. Em paralelo, atualiza a foto do mês
   // no Patrimônio (em segundo plano) e, se atualizou, recarrega só o patrimônio.
@@ -94,8 +100,8 @@ export default function DashboardClient() {
       setCryptos(c)
       setBuckets(b)
       setRendaFixa(rf)
-      setAcoes(Array.isArray(ac) ? ac : [])
-    })
+      setAcoes(ac)
+    }).catch(falhou)
     sincronizarPatrimonio()
       .then((atualizou) => {
         if (!atualizou) return
@@ -109,26 +115,30 @@ export default function DashboardClient() {
       .then((r) => r.json())
       .then((d) => setRates({ USD: Number(d.USDBRL.bid), EUR: Number(d.EURBRL.bid) }))
       .catch(() => {})
-  }, [api])
+  }, [api, falhou])
 
   // Cotação dos FIIs quando a lista chega.
   const tickers = useMemo(() => fiis.map((f) => f.ticker).join(','), [fiis])
   useEffect(() => {
     if (!tickers) return
-    api(`/api/fii/quote?tickers=${tickers}`).then((d) => setFiiQuotes(d.precos ?? {}))
+    api(`/api/fii/quote?tickers=${tickers}`)
+      .then((d) => setFiiQuotes(d.precos ?? {}))
+      .catch(() => {}) // sem cotação: usa o preço médio
   }, [tickers, api])
 
   // Cotação das ações (mesma fonte do FII).
   const tickersAcoes = useMemo(() => acoes.map((a) => a.ticker).join(','), [acoes])
   useEffect(() => {
     if (!tickersAcoes) return
-    api(`/api/acao/quote?tickers=${tickersAcoes}`).then((d) => setAcaoQuotes(d.precos ?? {}))
+    api(`/api/acao/quote?tickers=${tickersAcoes}`)
+      .then((d) => setAcaoQuotes(d.precos ?? {}))
+      .catch(() => {})
   }, [tickersAcoes, api])
 
   // Lançamentos do mês selecionado.
   useEffect(() => {
-    api(`/api/transaction?de=${mes}-01&ate=${fimDoMes(mes)}`).then(setTxs)
-  }, [mes, api])
+    api(`/api/transaction?de=${mes}-01&ate=${fimDoMes(mes)}`).then(setTxs).catch(falhou)
+  }, [mes, api, falhou])
 
   // ---- Cálculos ----
   const entradas = totalEntradas(txs, rates)
@@ -164,6 +174,11 @@ export default function DashboardClient() {
       description="Seu panorama financeiro num lugar só"
       icon={LayoutDashboard}
     >
+      {erro && (
+        <p className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Não deu pra carregar tudo: {erro}
+        </p>
+      )}
       {/* Patrimônio em destaque */}
       <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <Card className="bg-primary p-5 text-primary-foreground md:col-span-1">

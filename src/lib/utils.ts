@@ -6,7 +6,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const hojeISO = () => new Date().toISOString().slice(0, 10)
+// Data de HOJE no horário de Brasília ('AAAA-MM-DD'). Antes usava UTC: depois
+// das 21h já virava amanhã (e no último dia do mês, o mês seguinte).
+export const hojeISO = (agora = new Date()) =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(agora)
 
 // '2026-06-09' -> '09/06/2026'
 export function formatData(iso: string) {

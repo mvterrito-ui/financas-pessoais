@@ -44,7 +44,10 @@ async function garantirLugares(sb: SupabaseClient, tenantId: string) {
 }
 
 // Valor de hoje de cada módulo, na moeda do lugar (cripto em US$, resto em R$).
-async function valoresAtuais(sb: SupabaseClient, tenantId: string): Promise<Record<Origem, number>> {
+async function valoresAtuais(
+  sb: SupabaseClient,
+  tenantId: string,
+): Promise<Record<Origem, number | null>> {
   const ativos = (tabela: string) =>
     sb.from(tabela).select('*').eq('tenant_id', tenantId).eq('ativo', true)
   const [fiis, acoes, rf, cripto] = await Promise.all([
@@ -54,9 +57,14 @@ async function valoresAtuais(sb: SupabaseClient, tenantId: string): Promise<Reco
     sb.from('crypto_summary').select('*').eq('tenant_id', tenantId).then(ok) as Promise<CryptoSummary[]>,
   ])
   const quotes = await precosB3([...fiis, ...acoes].map((f) => f.ticker))
+  // Se faltou cotação de alguma posição (Yahoo fora/limite), o cálculo cairia
+  // no preço médio e SOBRESCREVERIA a foto do mês com um valor errado. Nesse
+  // caso a origem fica de fora (null) e a última foto boa é mantida.
+  const semCotacao = (lista: Fii[]) =>
+    lista.some((f) => Number(f.quantidade) > 0 && quotes[f.ticker.toUpperCase()] === undefined)
   return {
-    acao: carteiraTotais(acoes, quotes).atual,
-    fii: carteiraTotais(fiis, quotes).atual,
+    acao: semCotacao(acoes) ? null : carteiraTotais(acoes, quotes).atual,
+    fii: semCotacao(fiis) ? null : carteiraTotais(fiis, quotes).atual,
     renda_fixa: rfTotais(rf).atual,
     cripto: criptoValor(cripto),
   }
@@ -111,17 +119,20 @@ export async function sincronizarMes(sb: SupabaseClient, tenantId: string) {
     garantirLugares(sb, tenantId),
     valoresAtuais(sb, tenantId),
   ])
+  const prontos = ORIGENS.filter((o) => valores[o.origem] !== null)
   ok(
     await sb.from('wealth_snapshot').upsert(
-      ORIGENS.map((o) => ({
+      prontos.map((o) => ({
         tenant_id: tenantId,
         place_id: ids[o.origem],
         mes,
-        valor: centavos(valores[o.origem]),
+        valor: centavos(valores[o.origem]!),
       })),
       { onConflict: 'place_id,mes' },
     ),
   )
   const copiados = await carregarManuais(sb, tenantId, mes)
-  return { mes, copiados }
+  const pulados = ORIGENS.filter((o) => valores[o.origem] === null).map((o) => o.nome)
+  if (pulados.length) console.warn(`[patrimonio] sem cotação, mantida a última foto: ${pulados.join(', ')}`)
+  return { mes, copiados, pulados }
 }

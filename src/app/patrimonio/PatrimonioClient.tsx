@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -106,12 +106,24 @@ export default function PatrimonioClient() {
   }, [])
 
   const mesData = `${mes}-01`
+  // Campos com digitação ainda NÃO salva. Quando os dados recarregam (outra
+  // linha salvou, a sincronização terminou), esses não são sobrescritos —
+  // antes o valor em digitação sumia e, no blur, "nada mudou" e não salvava.
+  const sujos = useRef(new Set<string>())
+  const mesDosSujos = useRef(mesData)
   useEffect(() => {
+    if (mesDosSujos.current !== mesData) {
+      sujos.current.clear() // trocou de mês: descarta rascunhos do outro mês
+      mesDosSujos.current = mesData
+    }
     const m: Record<string, string> = {}
     for (const s of snaps) {
       if (s.mes.slice(0, 10) === mesData) m[s.place_id] = String(s.valor)
     }
-    setValores(m)
+    setValores((antes) => {
+      for (const id of sujos.current) if (antes[id] !== undefined) m[id] = antes[id]
+      return m
+    })
   }, [snaps, mesData])
 
   // Valores já salvos no mês e no mês anterior (por lugar, moeda nativa).
@@ -142,7 +154,10 @@ export default function PatrimonioClient() {
     const valor = valores[place_id] ?? ''
     const salvo = salvos.get(place_id)
     // Nada mudou (ou campo vazio que nunca teve valor) -> não salva.
-    if (valor === '' ? salvo === undefined : Number(valor) === salvo) return
+    if (valor === '' ? salvo === undefined : Number(valor) === salvo) {
+      sujos.current.delete(place_id)
+      return
+    }
     setErro(null)
     marcar(place_id, 'salvando')
     try {
@@ -151,6 +166,7 @@ export default function PatrimonioClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ place_id, mes: mesData, valor: Number(valor) || 0 }),
       })
+      sujos.current.delete(place_id)
       await carregar()
       marcar(place_id, 'salvo')
       // Some o "✓ Salvo" depois de 2s (se não mudou de estado nesse meio-tempo).
@@ -171,12 +187,25 @@ export default function PatrimonioClient() {
   }
 
   async function mudarMoeda(place_id: string, moeda: Moeda) {
-    await api(`/api/place/${place_id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ moeda }),
-    })
-    await carregar()
+    // O valor fica guardado na moeda do bem: trocar a moeda REINTERPRETA todo o
+    // histórico (R$ 10.000 vira US$ 10.000). Confirma quando já há valores.
+    if (
+      snaps.some((s) => s.place_id === place_id) &&
+      !confirm(
+        `Trocar a moeda deste bem pra ${moeda}?\n\nOs valores já lançados (inclusive meses anteriores) passam a ser lidos em ${moeda}, sem conversão. Use só se a moeda estava errada desde o início.`,
+      )
+    )
+      return
+    try {
+      await api(`/api/place/${place_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ moeda }),
+      })
+      await carregar()
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   async function ocultarLugar(place: WealthPlace, ocultar: boolean) {
@@ -221,17 +250,21 @@ export default function PatrimonioClient() {
   }
 
   async function novoLugar() {
-    const v = await ask({
-      title: 'Novo bem (manual)',
-      fields: [{ name: 'name', label: 'Nome', placeholder: 'Conta corrente, Reserva, Imóvel...' }],
-    })
-    if (!v?.name) return
-    await api('/api/place', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: v.name, ordem: places.length + 1 }),
-    })
-    await carregar()
+    try {
+      const v = await ask({
+        title: 'Novo bem (manual)',
+        fields: [{ name: 'name', label: 'Nome', placeholder: 'Conta corrente, Reserva, Imóvel...' }],
+      })
+      if (!v?.name) return
+      await api('/api/place', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: v.name, ordem: places.length + 1 }),
+      })
+      await carregar()
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   // Investimentos (automáticos, na ordem dos módulos) x outros bens (manuais).
@@ -455,7 +488,10 @@ export default function PatrimonioClient() {
                 anterior={anteriores.get(p.id) ?? null}
                 rates={rates}
                 status={status[p.id]}
-                onChange={(val) => setValores((v) => ({ ...v, [p.id]: val }))}
+                onChange={(val) => {
+                  sujos.current.add(p.id)
+                  setValores((v) => ({ ...v, [p.id]: val }))
+                }}
                 onSave={() => salvar(p.id)}
                 onMoeda={(m) => mudarMoeda(p.id, m)}
                 onHide={() => ocultarLugar(p, true)}

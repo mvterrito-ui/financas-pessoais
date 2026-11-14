@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PieChart, Plus, Trash2, Wallet, Percent } from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
@@ -47,9 +47,13 @@ export default function OrcamentoClient() {
     [router],
   )
 
+  // % que está SALVO no servidor (a tela edita uma cópia local pro preview).
+  const salvosPct = useRef(new Map<string, number>())
   const carregarBuckets = useCallback(async () => {
     try {
-      setBuckets(await api('/api/budget'))
+      const lista = (await api('/api/budget')) as BudgetBucket[]
+      salvosPct.current = new Map(lista.map((b) => [b.id, Number(b.percentual)]))
+      setBuckets(lista)
     } catch (e) {
       setErro((e as Error).message)
     }
@@ -79,39 +83,58 @@ export default function OrcamentoClient() {
       bs.map((b) => (b.id === id ? { ...b, percentual: valor } : b)),
     )
   }
+  // Só salva se mudou; se falhar, volta o valor salvo (a tela não pode
+  // mostrar como salvo algo que o servidor recusou).
   async function salvarPercentual(id: string, valor: string) {
-    await api(`/api/budget/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ percentual: Number(valor) || 0 }),
-    })
+    const novo = Number(valor) || 0
+    const salvo = salvosPct.current.get(id)
+    if (novo === salvo) return
+    try {
+      await api(`/api/budget/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ percentual: novo }),
+      })
+      salvosPct.current.set(id, novo)
+    } catch (e) {
+      setErro((e as Error).message)
+      if (salvo !== undefined) editarPercentual(id, String(salvo))
+    }
   }
 
   async function novoBalde() {
-    const v = await ask({
-      title: 'Novo balde',
-      fields: [
-        { name: 'name', label: 'Nome do balde', placeholder: 'Viagem' },
-        { name: 'pct', label: 'Percentual', type: 'number', sufixo: '%' },
-      ],
-    })
-    if (!v?.name) return
-    await api('/api/budget', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: v.name,
-        percentual: Number(v.pct) || 0,
-        ordem: buckets.length + 1,
-      }),
-    })
-    await carregarBuckets()
+    try {
+      const v = await ask({
+        title: 'Novo balde',
+        fields: [
+          { name: 'name', label: 'Nome do balde', placeholder: 'Viagem' },
+          { name: 'pct', label: 'Percentual', type: 'number', sufixo: '%' },
+        ],
+      })
+      if (!v?.name) return
+      await api('/api/budget', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: v.name,
+          percentual: Number(v.pct) || 0,
+          ordem: buckets.length + 1,
+        }),
+      })
+      await carregarBuckets()
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   async function excluir(id: string) {
-    if (!confirm('Remover este balde?')) return
-    await api(`/api/budget/${id}`, { method: 'DELETE' })
-    await carregarBuckets()
+    try {
+      if (!confirm('Remover este balde?')) return
+      await api(`/api/budget/${id}`, { method: 'DELETE' })
+      await carregarBuckets()
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   const soma = somaPercentual(buckets)
@@ -210,6 +233,8 @@ export default function OrcamentoClient() {
                       size="icon"
                       className="h-8 w-8 text-muted-foreground hover:text-destructive"
                       onClick={() => excluir(b.id)}
+                        aria-label="Remover balde"
+                        title="Remover balde"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

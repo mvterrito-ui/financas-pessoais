@@ -42,9 +42,11 @@ import {
 } from '@/server/fluxo/fluxo.calc'
 import { parseStatement, type ParsedItem } from '@/server/fluxo/statement'
 import { usePromptDialog } from '@/components/ui/prompt'
-import { useRates } from '@/lib/useRates'
+import { useCotacao } from '@/lib/useRates'
 
-const vazio = {
+// Função (não constante): a data é a de HOJE no momento em que o formulário
+// abre — como constante, ficava congelada no dia em que a página carregou.
+const novoVazio = () => ({
   tipo: 'saida' as 'entrada' | 'saida',
   valor: '',
   moeda: 'BRL' as Moeda,
@@ -55,12 +57,12 @@ const vazio = {
   recorrente: false,
   parcelado: false,
   parcelas: '2', // nº de parcelas quando 'parcelado' está ligado
-}
+})
 
 export default function FluxoClient() {
   const router = useRouter()
   const ask = usePromptDialog()
-  const rates = useRates()
+  const { rates, aoVivo } = useCotacao()
 
   const [txs, setTxs] = useState<Transaction[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -68,7 +70,7 @@ export default function FluxoClient() {
   const [erro, setErro] = useState<string | null>(null)
   const [aberto, setAberto] = useState(false)
   const [editId, setEditId] = useState<string | null>(null) // null = criando; id = editando
-  const [f, setF] = useState({ ...vazio })
+  const [f, setF] = useState(novoVazio)
 
   // filtros da listagem — começa no mês atual (botão "Todo período" zera o filtro)
   const [fMes, setFMes] = useState(hojeISO().slice(0, 7)) // 'AAAA-MM' ou '' (todos)
@@ -137,7 +139,7 @@ export default function FluxoClient() {
 
   function abrirNovo() {
     setEditId(null)
-    setF({ ...vazio })
+    setF(novoVazio())
     setErro(null)
     setAberto(true)
   }
@@ -207,50 +209,62 @@ export default function FluxoClient() {
   }
 
   async function criarCategoria() {
-    const v = await ask({
-      title: `Nova categoria de ${f.tipo === 'entrada' ? 'entrada' : 'saída'}`,
-      fields: [{ name: 'name', label: 'Nome da categoria', placeholder: 'Mercado, Salário…' }],
-    })
-    if (!v?.name) return
-    const nova = await api('/api/category', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: v.name, tipo: f.tipo }),
-    })
-    await carregarCadastros()
-    set('category_id', nova.id)
+    try {
+      const v = await ask({
+        title: `Nova categoria de ${f.tipo === 'entrada' ? 'entrada' : 'saída'}`,
+        fields: [{ name: 'name', label: 'Nome da categoria', placeholder: 'Mercado, Salário…' }],
+      })
+      if (!v?.name) return
+      const nova = await api('/api/category', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: v.name, tipo: f.tipo }),
+      })
+      await carregarCadastros()
+      set('category_id', nova.id)
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   async function criarConta() {
-    const v = await ask({
-      title: 'Nova conta/cartão',
-      fields: [{ name: 'name', label: 'Nome', placeholder: 'Cartão XP, Pix…' }],
-    })
-    if (!v?.name) return
-    const nova = await api('/api/account', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: v.name }),
-    })
-    await carregarCadastros()
-    set('account_id', nova.id)
+    try {
+      const v = await ask({
+        title: 'Nova conta/cartão',
+        fields: [{ name: 'name', label: 'Nome', placeholder: 'Cartão XP, Pix…' }],
+      })
+      if (!v?.name) return
+      const nova = await api('/api/account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: v.name }),
+      })
+      await carregarCadastros()
+      set('account_id', nova.id)
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   async function excluir(t: Transaction) {
-    // Parcela faz parte de uma compra: excluir apaga a compra inteira.
-    if (t.parcela_grupo && t.parcela_total) {
-      const todas = confirm(
-        `Esta é a parcela ${t.parcela_num}/${t.parcela_total} de uma compra parcelada.\n\n` +
-          `OK = excluir as ${t.parcela_total} parcelas\nCancelar = manter`,
-      )
-      if (!todas) return
-      await api(`/api/transaction/grupo/${t.parcela_grupo}`, { method: 'DELETE' })
+    try {
+      // Parcela faz parte de uma compra: excluir apaga a compra inteira.
+      if (t.parcela_grupo && t.parcela_total) {
+        const todas = confirm(
+          `Esta é a parcela ${t.parcela_num}/${t.parcela_total} de uma compra parcelada.\n\n` +
+            `OK = excluir as ${t.parcela_total} parcelas\nCancelar = manter`,
+        )
+        if (!todas) return
+        await api(`/api/transaction/grupo/${t.parcela_grupo}`, { method: 'DELETE' })
+        await carregarTx()
+        return
+      }
+      if (!confirm('Excluir este lançamento?')) return
+      await api(`/api/transaction/${t.id}`, { method: 'DELETE' })
       await carregarTx()
-      return
+    } catch (e) {
+      setErro((e as Error).message)
     }
-    if (!confirm('Excluir este lançamento?')) return
-    await api(`/api/transaction/${t.id}`, { method: 'DELETE' })
-    await carregarTx()
   }
 
   function abrirImport() {
@@ -503,7 +517,8 @@ export default function FluxoClient() {
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-primary"
                         onClick={() => abrirEditar(t)}
-                        title="Editar"
+                        aria-label="Editar lançamento"
+                        title="Editar lançamento"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -512,7 +527,8 @@ export default function FluxoClient() {
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         onClick={() => excluir(t)}
-                        title="Excluir"
+                        aria-label="Remover lançamento"
+                        title="Remover lançamento"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -593,7 +609,8 @@ export default function FluxoClient() {
           {f.moeda !== 'BRL' && Number(f.valor) > 0 && (
             <p className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
               ≈ <strong className="text-foreground">{formatBRL(valorEmBRL(f.valor, f.moeda, rates))}</strong>{' '}
-              · cotação ao vivo {f.moeda} {formatBRL(f.moeda === 'USD' ? rates.USD : rates.EUR)}
+              · cotação {aoVivo ? 'ao vivo' : 'estimada (sem conexão)'} {f.moeda}{' '}
+              {formatBRL(f.moeda === 'USD' ? rates.USD : rates.EUR)}
             </p>
           )}
 
@@ -622,7 +639,7 @@ export default function FluxoClient() {
                     </option>
                   ))}
                 </Select>
-                <Button type="button" variant="outline" size="icon" onClick={criarCategoria}>
+                <Button type="button" variant="outline" size="icon" onClick={criarCategoria} aria-label="Nova categoria" title="Nova categoria">
                   <Plus />
                 </Button>
               </div>
@@ -641,7 +658,7 @@ export default function FluxoClient() {
                     </option>
                   ))}
                 </Select>
-                <Button type="button" variant="outline" size="icon" onClick={criarConta}>
+                <Button type="button" variant="outline" size="icon" onClick={criarConta} aria-label="Nova conta" title="Nova conta">
                   <Plus />
                 </Button>
               </div>

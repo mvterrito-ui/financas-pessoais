@@ -18,14 +18,20 @@ const transactionBase = z.object({
 })
 
 // O que a API ACEITA receber pra criar um lançamento. Se vier diferente -> 400.
-export const transactionCreateSchema = transactionBase.refine(
-  // Parcelar só faz sentido em saída (gasto). Entrada parcelada não existe aqui.
-  (d) => !d.parcelas || d.tipo === 'saida',
-  { message: 'Só dá pra parcelar uma saída', path: ['parcelas'] },
-)
+export const transactionCreateSchema = transactionBase
+  .refine(
+    // Parcelar só faz sentido em saída (gasto). Entrada parcelada não existe aqui.
+    (d) => !d.parcelas || d.tipo === 'saida',
+    { message: 'Só dá pra parcelar uma saída', path: ['parcelas'] },
+  )
+  .refine((d) => !d.parcelas || d.valor / d.parcelas >= 0.01, {
+    message: 'Valor pequeno demais pra esse número de parcelas',
+    path: ['parcelas'],
+  })
 
 // Pra editar: tudo opcional (manda só o que mudou).
-export const transactionUpdateSchema = parcial(transactionBase)
+// (parcelas não se edita: a compra parcelada já virou N lançamentos.)
+export const transactionUpdateSchema = parcial(transactionBase.omit({ parcelas: true }))
 
 // Filtros da listagem (vêm da URL: ?de=...&ate=...&tipo=...).
 const dataISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use o formato AAAA-MM-DD')

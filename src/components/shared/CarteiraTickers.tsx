@@ -116,9 +116,13 @@ export function CarteiraTickers({ config: c }: { config: CarteiraConfig }) {
   }
 
   async function excluir(id: string) {
-    if (!confirm(`Remover esta posição (${c.nome})?`)) return
-    await api(`${c.api}/${id}`, { method: 'DELETE' })
-    await carregar()
+    try {
+      if (!confirm(`Remover esta posição (${c.nome})?`)) return
+      await api(`${c.api}/${id}`, { method: 'DELETE' })
+      await carregar()
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   const t = totais(itens, quotes)
@@ -239,6 +243,8 @@ export function CarteiraTickers({ config: c }: { config: CarteiraConfig }) {
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         onClick={() => excluir(f.id)}
+                        aria-label="Remover posição"
+                        title="Remover posição"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

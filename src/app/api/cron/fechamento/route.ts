@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { createSupabaseAdminClient } from '@/server/supabase-admin'
 import { sincronizarMes } from '@/server/patrimonio/investimentos'
@@ -10,9 +11,16 @@ import { sincronizarMes } from '@/server/patrimonio/investimentos'
 // segredo certo -> 401 (ninguém de fora consegue disparar).
 export const maxDuration = 60
 
+// Comparação em tempo constante (não vaza o segredo por tempo de resposta).
+function iguaisSeguro(a: string, b: string) {
+  const ba = Buffer.from(a)
+  const bb = Buffer.from(b)
+  return ba.length === bb.length && timingSafeEqual(ba, bb)
+}
+
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET
-  if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!secret || !iguaisSeguro(request.headers.get('authorization') ?? '', `Bearer ${secret}`)) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 

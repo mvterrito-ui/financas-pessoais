@@ -7,6 +7,17 @@
 //   bloqueado no painel, e sem enviar e-mail (email_confirm: true).
 // - Idempotente: limpa os dados do tenant demo e recria do zero.
 import { readFileSync } from 'node:fs'
+
+// TRAVA: o .env.local aponta pro projeto Supabase de PRODUÇÃO, e a senha do demo
+// é pública (README). Rodar isso lá abre uma porta de entrada no app.
+// Só roda com confirmação explícita: npm run seed:demo -- --sim
+if (!process.argv.includes('--sim')) {
+  console.error(
+    '⚠️  Este script cria um login com senha PÚBLICA no projeto do .env.local.\n' +
+      '    Use só num projeto Supabase de teste. Pra confirmar: npm run seed:demo -- --sim',
+  )
+  process.exit(1)
+}
 import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 
@@ -120,10 +131,26 @@ ok((await supabase.from('transaction').insert(txs)).error, 'inserir transaction'
 console.log(`💸 ${txs.length} lançamentos`)
 
 // ---- 5) patrimônio: snapshots crescentes nos lugares do gatilho ------
+// Conta nova começa vazia (0018): cria os bens manuais do demo se faltarem.
+const BENS_DEMO = [
+  { name: 'Reserva', moeda: 'BRL' },
+  { name: 'Conta corrente', moeda: 'BRL' },
+  { name: 'Dólar', moeda: 'USD' },
+]
+const { data: jaTem, error: errJa } = await supabase
+  .from('wealth_place').select('name').eq('tenant_id', tenant_id).is('origem', null)
+ok(errJa, 'wealth_place (existentes)')
+const faltam = BENS_DEMO.filter((b) => !jaTem.some((p) => p.name === b.name))
+if (faltam.length) {
+  ok(
+    (await supabase.from('wealth_place').insert(faltam.map((b, i) => ({ ...b, tenant_id, ordem: i + 1 })))).error,
+    'criar wealth_place',
+  )
+}
 const { data: places, error: errPl } = await supabase
-  .from('wealth_place').select('id, name').eq('tenant_id', tenant_id)
+  .from('wealth_place').select('id, name').eq('tenant_id', tenant_id).is('origem', null).eq('ativo', true)
 ok(errPl, 'wealth_place')
-const baseLugar = { XP: 15000, BTC: 8000, Cripto: 1200, USD: 2000, Revolut: 800, Buddy: 500, BB: 3000, Reserva: 10000 }
+const baseLugar = { Reserva: 10000, 'Conta corrente': 3000, 'Dólar': 2000 }
 const snaps = []
 for (const pl of places) {
   const base = baseLugar[pl.name] ?? 1000

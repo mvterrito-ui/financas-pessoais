@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { makeRepo } from './crud'
+import { buscarTudo, makeRepo } from './crud'
 import type { TransactionFilter } from './transaction.schema'
 
 const base = makeRepo('transaction')
@@ -8,27 +8,30 @@ const base = makeRepo('transaction')
 // (Sem filtro de tenant: o RLS isola sozinho.)
 export const transactionRepo = {
   ...base,
+  // Paginado: o Supabase corta em 1000 linhas por resposta (sem avisar).
   async list(supabase: SupabaseClient, filtros: TransactionFilter = {}) {
-    let query = supabase.from('transaction').select('*').eq('ativo', true)
-
-    if (filtros.de) query = query.gte('data', filtros.de)
-    if (filtros.ate) query = query.lte('data', filtros.ate)
-    if (filtros.tipo) query = query.eq('tipo', filtros.tipo)
-
-    const { data, error } = await query.order('data', { ascending: false })
-    if (error) throw new Error(error.message)
-    return data
+    return buscarTudo((de, ate) => {
+      let query = supabase.from('transaction').select('*').eq('ativo', true)
+      if (filtros.de) query = query.gte('data', filtros.de)
+      if (filtros.ate) query = query.lte('data', filtros.ate)
+      if (filtros.tipo) query = query.eq('tipo', filtros.tipo)
+      return query.order('data', { ascending: false }).order('id').range(de, ate)
+    })
   },
 
   // Quais desses external_id já existem (pra não duplicar na importação).
+  // Em lotes: o .in() vai na URL, e um extrato grande estourava o tamanho dela.
   async existingExternalIds(supabase: SupabaseClient, ids: string[]) {
-    if (ids.length === 0) return []
-    const { data, error } = await supabase
-      .from('transaction')
-      .select('external_id')
-      .in('external_id', ids)
-    if (error) throw new Error(error.message)
-    return (data ?? []).map((d) => d.external_id as string)
+    const achados: string[] = []
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data, error } = await supabase
+        .from('transaction')
+        .select('external_id')
+        .in('external_id', ids.slice(i, i + 100))
+      if (error) throw new Error(error.message)
+      achados.push(...(data ?? []).map((d) => d.external_id as string))
+    }
+    return achados
   },
 
   async insertMany(supabase: SupabaseClient, rows: Record<string, unknown>[]) {

@@ -69,37 +69,45 @@ export default function RendaFixaClient() {
   }
 
   async function novo() {
-    const v = await ask({
-      title: 'Nova aplicação',
-      fields: [
-        { name: 'nome', label: 'Título', placeholder: 'Tesouro Selic 2029, CDB Banco X…' },
-        { name: 'instituicao', label: 'Instituição', placeholder: 'XP, Nubank…' },
-        { name: 'tipo', label: 'Tipo', placeholder: 'Tesouro, CDB, LCI…' },
-        { name: 'valor_aplicado', label: 'Valor aplicado', type: 'money', prefixo: 'R$' },
-        { name: 'valor_atual', label: 'Valor atual', type: 'money', prefixo: 'R$' },
-        { name: 'vencimento', label: 'Vencimento (opcional)', type: 'text', placeholder: 'AAAA-MM-DD' },
-      ],
-    })
-    if (!v?.nome) return
-    await api('/api/fixed-income', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nome: v.nome,
-        instituicao: v.instituicao || null,
-        tipo: v.tipo || null,
-        valor_aplicado: Number(v.valor_aplicado) || 0,
-        valor_atual: Number(v.valor_atual) || 0,
-        vencimento: /^\d{4}-\d{2}-\d{2}$/.test(v.vencimento ?? '') ? v.vencimento : null,
-      }),
-    })
-    await carregar()
+    try {
+      const v = await ask({
+        title: 'Nova aplicação',
+        fields: [
+          { name: 'nome', label: 'Título', placeholder: 'Tesouro Selic 2029, CDB Banco X…' },
+          { name: 'instituicao', label: 'Instituição', placeholder: 'XP, Nubank…' },
+          { name: 'tipo', label: 'Tipo', placeholder: 'Tesouro, CDB, LCI…' },
+          { name: 'valor_aplicado', label: 'Valor aplicado', type: 'money', prefixo: 'R$' },
+          { name: 'valor_atual', label: 'Valor atual', type: 'money', prefixo: 'R$' },
+          { name: 'vencimento', label: 'Vencimento (opcional)', type: 'text', placeholder: 'AAAA-MM-DD' },
+        ],
+      })
+      if (!v?.nome) return
+      await api('/api/fixed-income', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: v.nome,
+          instituicao: v.instituicao || null,
+          tipo: v.tipo || null,
+          valor_aplicado: Number(v.valor_aplicado) || 0,
+          valor_atual: Number(v.valor_atual) || 0,
+          vencimento: /^\d{4}-\d{2}-\d{2}$/.test(v.vencimento ?? '') ? v.vencimento : null,
+        }),
+      })
+      await carregar()
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   async function excluir(id: string) {
-    if (!confirm('Remover esta aplicação?')) return
-    await api(`/api/fixed-income/${id}`, { method: 'DELETE' })
-    await carregar()
+    try {
+      if (!confirm('Remover esta aplicação?')) return
+      await api(`/api/fixed-income/${id}`, { method: 'DELETE' })
+      await carregar()
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }
 
   const t = totais(itens)
@@ -220,6 +228,8 @@ export default function RendaFixaClient() {
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         onClick={() => excluir(f.id)}
+                        aria-label="Remover aplicação"
+                        title="Remover aplicação"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

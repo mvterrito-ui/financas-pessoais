@@ -129,17 +129,28 @@ export default function AnualClient() {
   // ---------------- valores (otimista: atualiza a tela antes do servidor)
   const gravarValores = useCallback(
     async (itemId: string, lista: { mes: string; valor: number | null }[]) => {
-      const antes = valores
-      const novo = new Map(valores)
-      for (const { mes, valor } of lista) {
-        if (valor === null) novo.delete(chave(itemId, mes))
-        else novo.set(chave(itemId, mes), valor)
-      }
-      setValores(novo)
+      // Guarda o valor anterior SÓ das células deste envio: se falhar, desfaz
+      // só elas (antes voltava o mapa inteiro e apagava outros salvamentos).
+      const anteriores = lista.map(({ mes }) => [chave(itemId, mes), valores.get(chave(itemId, mes))] as const)
+      setValores((atual) => {
+        const novo = new Map(atual)
+        for (const { mes, valor } of lista) {
+          if (valor === null) novo.delete(chave(itemId, mes))
+          else novo.set(chave(itemId, mes), valor)
+        }
+        return novo
+      })
       try {
         await enviar('/api/anual/valor', 'POST', { item_id: itemId, valores: lista })
       } catch (e) {
-        setValores(antes)
+        setValores((atual) => {
+          const novo = new Map(atual)
+          for (const [k, v] of anteriores) {
+            if (v === undefined) novo.delete(k)
+            else novo.set(k, v)
+          }
+          return novo
+        })
         setErro((e as Error).message)
       }
     },

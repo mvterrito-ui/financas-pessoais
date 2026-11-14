@@ -1,5 +1,6 @@
 import type { AuthContext } from '@/server/auth/context'
 import { categoriaRepo, estruturaRepo, grupoRepo, itemRepo, valorRepo } from './anual.repo'
+import { ErroHttp } from '@/server/erro'
 import {
   categoriaCreateSchema,
   categoriaUpdateSchema,
@@ -11,7 +12,7 @@ import {
 } from './anual.schema'
 
 const tenant = (ctx: AuthContext) => {
-  if (!ctx.tenantId) throw new Error('Usuário sem tenant')
+  if (!ctx.tenantId) throw new ErroHttp(403, 'Usuário sem conta vinculada')
   return ctx.tenantId
 }
 
@@ -47,7 +48,7 @@ export const anualService = {
 
   // ---- valores
   valoresDoAno: (ctx: AuthContext, ano: number) => {
-    if (!Number.isInteger(ano) || ano < 2000 || ano > 2100) throw new Error('Ano inválido')
+    if (!Number.isInteger(ano) || ano < 2000 || ano > 2100) throw new ErroHttp(400, 'Ano inválido')
     return valorRepo.doAno(ctx.supabase, ano)
   },
 

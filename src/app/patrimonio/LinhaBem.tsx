@@ -105,7 +105,7 @@ export function LinhaBem({
           onBlur={onSave}
         />
 
-        <div className="flex shrink-0 items-center transition-opacity focus-within:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+        <div className="flex shrink-0 items-center transition-opacity focus-within:opacity-100 desk:opacity-0 desk:group-hover:opacity-100">
           <button
             type="button"
             onClick={onHide}

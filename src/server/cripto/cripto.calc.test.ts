@@ -27,16 +27,17 @@ describe('cripto.calc', () => {
 })
 
 describe('cripto.valorAtual', () => {
-  const s = (ano: number, aplicado: number, resultado: number) =>
-    ({ id: `${ano}-${aplicado}`, exchange: 'X', ano, aplicado, resultado }) as CryptoSummary
 
   it('sem dados => 0', () => {
     expect(valorAtual([])).toBe(0)
   })
 
-  it('usa só o ano mais recente: aplicado + resultado', () => {
-    const itens = [s(2025, 1000, 500), s(2026, 2000, 300), s(2026, 1000, -100)]
-    expect(valorAtual(itens)).toBe(3200) // (2000+300) + (1000-100)
+  it('por corretora, usa o ano mais recente DELA: aplicado + resultado', () => {
+    const c = (exchange: string, ano: number, aplicado: number, resultado: number) =>
+      ({ id: `${exchange}${ano}`, exchange, ano, aplicado, resultado }) as CryptoSummary
+    const itens = [c('A', 2025, 1000, 500), c('A', 2026, 2000, 300), c('B', 2025, 1000, -100)]
+    // A: 2026 (2300) · B ainda sem 2026 -> usa 2025 (900)
+    expect(valorAtual(itens)).toBe(3200)
   })
 })
 

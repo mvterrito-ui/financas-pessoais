@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { buscarTudo } from '@/server/fluxo/crud'
 
 // Snapshots não usam o CRUD genérico: a operação é UPSERT por (lugar, mês).
 export const snapshotRepo = {
@@ -7,12 +8,18 @@ export const snapshotRepo = {
   //  - lugar oculto: só as de meses ANTERIORES ao oculto_desde.
   // (Comparação entre colunas não dá no PostgREST -> filtra aqui.)
   async list(supabase: SupabaseClient) {
-    const { data, error } = await supabase
-      .from('wealth_snapshot')
-      .select('*, wealth_place!inner(ativo, oculto_desde)')
-      .eq('wealth_place.ativo', true)
-      .order('mes', { ascending: true })
-    if (error) throw new Error(error.message)
+    // Paginado (o Supabase corta em 1000): sem isso, com muitos anos de
+    // histórico, os meses MAIS RECENTES sumiam (a lista vem em ordem crescente).
+    const data = await buscarTudo<Record<string, unknown> & { mes: string; wealth_place?: { oculto_desde: string | null } }>(
+      (de, ate) =>
+        supabase
+          .from('wealth_snapshot')
+          .select('*, wealth_place!inner(ativo, oculto_desde)')
+          .eq('wealth_place.ativo', true)
+          .order('mes', { ascending: true })
+          .order('id')
+          .range(de, ate),
+    )
     return data
       .filter((row) => {
         const desde = row.wealth_place?.oculto_desde as string | null

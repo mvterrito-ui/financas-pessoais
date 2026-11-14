@@ -75,7 +75,7 @@ function BotaoIcone({
 
 // Ações que aparecem ao passar o mouse na linha (sempre visíveis no celular).
 // No desktop ficam FORA do fluxo até o hover (não roubam espaço do nome).
-const ACOES_DESKTOP = 'sm:hidden sm:group-hover/linha:flex sm:group-focus-within/linha:flex'
+const ACOES_DESKTOP = 'desk:hidden desk:group-hover/linha:flex desk:group-focus-within/linha:flex'
 
 /**
  * Ações da linha. Desktop: aparecem no hover. Celular (sem hover): botão "⋯"
@@ -97,7 +97,7 @@ function Acoes({
         aria-label="Ações"
         aria-expanded={aberto}
         onClick={onAlternar}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted sm:hidden"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted desk:hidden"
       >
         <MoreHorizontal className="h-4 w-4" />
       </button>
@@ -106,7 +106,7 @@ function Acoes({
         className={cn(
           'shrink-0 items-center',
           aberto
-            ? 'absolute right-9 top-1/2 z-30 flex -translate-y-1/2 rounded-lg border border-border bg-card p-0.5 shadow-lg sm:static sm:translate-y-0 sm:border-0 sm:p-0 sm:shadow-none'
+            ? 'absolute right-9 top-1/2 z-30 flex -translate-y-1/2 rounded-lg border border-border bg-card p-0.5 shadow-lg desk:static desk:translate-y-0 desk:border-0 desk:p-0 desk:shadow-none'
             : 'hidden',
           ACOES_DESKTOP,
         )}

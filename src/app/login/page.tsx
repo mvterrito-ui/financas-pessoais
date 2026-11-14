@@ -24,8 +24,6 @@ export default function LoginPage() {
   const router = useRouter()
   const supabase = createSupabaseBrowserClient()
 
-  const [modo, setModo] = useState<'login' | 'cadastro'>('login')
-  const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState<string | null>(null)
@@ -36,20 +34,9 @@ export default function LoginPage() {
     setErro(null)
     setCarregando(true)
     try {
-      if (modo === 'cadastro') {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password: senha,
-          options: { data: { name: nome } },
-        })
-        if (error) throw error
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password: senha,
-        })
-        if (error) throw error
-      }
+      // Só login: o cadastro é fechado (contas são criadas pelo admin).
+      const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
+      if (error) throw error
       router.refresh()
       router.push('/fluxo')
     } catch (err) {
@@ -77,24 +64,9 @@ export default function LoginPage() {
           <AvisoExpirou />
         </Suspense>
         <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">
-            {modo === 'login' ? 'Entrar 👋' : 'Criar conta ✨'}
-          </h2>
+          <h2 className="mb-4 text-lg font-semibold">Entrar 👋</h2>
 
           <form onSubmit={enviar} className="space-y-3">
-            {modo === 'cadastro' && (
-              <div className="space-y-1.5">
-                <Label htmlFor="nome">Nome</Label>
-                <Input
-                  id="nome"
-                  placeholder="Seu nome"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  required
-                />
-              </div>
-            )}
-
             <div className="space-y-1.5">
               <Label htmlFor="email">E-mail</Label>
               <Input
@@ -127,22 +99,10 @@ export default function LoginPage() {
             )}
 
             <Button type="submit" disabled={carregando} className="w-full">
-              {carregando ? 'Aguarde…' : modo === 'login' ? 'Entrar' : 'Cadastrar'}
+              {carregando ? 'Aguarde…' : 'Entrar'}
             </Button>
           </form>
 
-          <button
-            type="button"
-            onClick={() => {
-              setModo(modo === 'login' ? 'cadastro' : 'login')
-              setErro(null)
-            }}
-            className="mt-4 w-full text-sm text-muted-foreground hover:text-foreground"
-          >
-            {modo === 'login'
-              ? 'Não tem conta? Cadastre-se'
-              : 'Já tem conta? Entrar'}
-          </button>
         </Card>
       </div>
     </main>

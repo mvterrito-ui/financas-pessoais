@@ -58,3 +58,22 @@ export function makeRepo(table: string) {
     },
   }
 }
+
+/**
+ * Busca TODAS as linhas, página por página. O Supabase limita cada resposta
+ * (max_rows, 1000 por padrão) e corta o resto em silêncio — listas grandes
+ * (histórico importado, anos de patrimônio) saíam incompletas.
+ * `consulta(de, ate)` deve aplicar .range(de, ate) e uma ordem ESTÁVEL.
+ */
+export async function buscarTudo<T = Record<string, unknown>>(
+  consulta: (de: number, ate: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  pagina = 1000,
+): Promise<T[]> {
+  const tudo: T[] = []
+  for (let de = 0; ; de += pagina) {
+    const { data, error } = await consulta(de, de + pagina - 1)
+    if (error) throw new Error(error.message)
+    tudo.push(...(data ?? []))
+    if (!data || data.length < pagina) return tudo
+  }
+}

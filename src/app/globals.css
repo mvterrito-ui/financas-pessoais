@@ -5,6 +5,10 @@
    Cada token vira utilitário do Tailwind: bg-primary, text-muted-foreground,
    border-border, bg-sidebar, etc. (e aceitam opacidade: bg-primary/10).
    ===================================================================== */
+/* 'desk:' = tela >= 640px COM mouse (hover). Em tablet/celular de toque as
+   ações ficam visíveis (ou num menu), nunca escondidas atrás de um hover. */
+@custom-variant desk (@media (hover: hover) and (min-width: 40rem));
+
 @theme {
   --radius: 0.75rem;
 

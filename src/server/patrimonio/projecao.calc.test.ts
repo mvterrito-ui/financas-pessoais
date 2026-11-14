@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   mesesEntre,
   taxaMensalHistorica,
+  taxaMensalComparavel,
   mensalParaAnual,
   projetar,
 } from './projecao.calc'
@@ -48,5 +49,20 @@ describe('projecao.calc', () => {
     expect(p[2].aportado).toBe(2400) // 100 x 24 meses
     expect(p[2].valor).toBeCloseTo(3400, 6) // 1000 inicial + 2400 aportados
     expect(p[2].semAporte).toBe(1000) // sem juros, sem aporte, fica igual
+  })
+
+  it('taxaMensalComparavel: bem novo cadastrado NÃO conta como rendimento', () => {
+    const pontos = [
+      { mes: '2026-01-01', place_id: 'a', valor: 1000 },
+      { mes: '2026-02-01', place_id: 'a', valor: 1010 }, // +1% real
+      { mes: '2026-02-01', place_id: 'b', valor: 50000 }, // bem que só entrou agora
+    ]
+    expect(taxaMensalComparavel(pontos)).toBeCloseTo(0.01, 6)
+    // o primeiro×último antigo daria ~5000%/mês
+    expect(taxaMensalHistorica([{ mes: '2026-01-01', total: 1000 }, { mes: '2026-02-01', total: 51010 }])!).toBeGreaterThan(40)
+  })
+
+  it('taxaMensalComparavel: null sem dois meses comparáveis', () => {
+    expect(taxaMensalComparavel([{ mes: '2026-01-01', place_id: 'a', valor: 1 }])).toBeNull()
   })
 })

@@ -23,7 +23,10 @@ type Props = Base & {
 
 // Aceita vírgula ou ponto como decimal; devolve sempre com ponto.
 export function normalizarNumero(txt: string, casas: number): string {
-  const t = txt.replace(/[^\d.,]/g, '').replace(/\./g, ',')
+  let limpo = txt.replace(/[^\d.,]/g, '')
+  // Colou "1.234,56" (formato BR completo): os pontos são milhar, não decimal.
+  if (limpo.includes('.') && limpo.includes(',')) limpo = limpo.replace(/\./g, '')
+  const t = limpo.replace(/\./g, ',')
   const [int, ...resto] = t.split(',')
   if (casas === 0 || !t.includes(',')) return int
   return `${int || '0'}.${resto.join('').slice(0, casas)}`
