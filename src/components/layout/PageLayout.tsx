@@ -35,7 +35,7 @@ export function PageLayout({
               <Menu className="h-5 w-5" />
             </button>
             {Icon && (
-              <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-md shadow-emerald-700/25 ring-1 ring-white/20 sm:flex">
+              <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#10b981] to-[#047857] text-white shadow-md shadow-emerald-700/25 ring-1 ring-white/20 sm:flex">
                 <Icon className="h-5 w-5" />
               </span>
             )}

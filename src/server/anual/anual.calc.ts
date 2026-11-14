@@ -101,3 +101,27 @@ export function resumo(grupos: Grupo[], itens: Item[], valores: Valores, ano: nu
   )
   return { meses, porGrupo, receita, investimento, despesa, saldo }
 }
+
+// ---- Ligação com o Fluxo de Caixa ---------------------------------------
+export type FluxoDoItem = { item_id: string; mes: string; moeda: string; valor: number | string }
+
+/**
+ * Valores EFETIVOS da grade: item ligado ao Fluxo usa SÓ a soma dos
+ * lançamentos (convertida pra real); o valor digitado nele fica guardado, mas
+ * não conta enquanto estiver ligado. Itens não ligados ficam como estão.
+ */
+export function aplicarFluxo(
+  valores: Valores,
+  fluxo: FluxoDoItem[],
+  ligados: Set<string>,
+  emReal: (valor: number, moeda: string) => number,
+): Valores {
+  const out = new Map<string, number>()
+  for (const [k, v] of valores) if (!ligados.has(k.split('|')[0])) out.set(k, v)
+  for (const f of fluxo) {
+    if (!ligados.has(f.item_id)) continue
+    const k = chave(f.item_id, f.mes)
+    out.set(k, (out.get(k) ?? 0) + emReal(Number(f.valor), f.moeda))
+  }
+  return out
+}

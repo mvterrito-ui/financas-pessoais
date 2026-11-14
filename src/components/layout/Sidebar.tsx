@@ -23,6 +23,7 @@ import {
 import { cn } from '@/lib/utils'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { expiraEmMs } from '@/lib/sessao'
+import { TemaToggle } from './TemaToggle'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -227,13 +228,14 @@ export function Sidebar({ aberto = false, onFechar }: { aberto?: boolean; onFech
         </nav>
 
         {/* Usuário + sair */}
-        <div className="relative border-t border-white/10 p-3">
+        <div className="relative space-y-2 border-t border-white/10 p-3">
+          <TemaToggle />
           <button
             onClick={abrirPerfil}
             title="Editar perfil"
             className="group mb-1 flex w-full items-center gap-3 rounded-xl bg-white/[0.04] px-2.5 py-2.5 text-left ring-1 ring-white/[0.06] transition-colors hover:bg-white/[0.08]"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-xs font-semibold text-white shadow-md shadow-emerald-900/40">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#34d399] to-[#059669] text-xs font-semibold text-white shadow-md shadow-emerald-900/40">
               {iniciais(nome)}
             </span>
             <div className="min-w-0 flex-1">

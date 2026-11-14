@@ -10,6 +10,7 @@ import {
   valorEmBRL,
   type Transaction,
   type Category,
+  repeticoesRecorrentes,
 } from './fluxo.calc'
 
 const txs = [
@@ -103,5 +104,41 @@ describe('parcelamento', () => {
     expect(ps.map((p) => p.valor)).toEqual([33.33, 33.33, 33.34])
     const soma = ps.reduce((s, p) => s + p.valor, 0)
     expect(soma).toBeCloseTo(100, 2) // soma das parcelas = total exato
+  })
+})
+
+describe('repeticoesRecorrentes (gasto fixo que se repete todo mês)', () => {
+  const base = {
+    id: 'a',
+    tipo: 'saida' as const,
+    valor: 100,
+    data: '2026-01-31',
+    descricao: 'Academia',
+    recorrente: true,
+    repete: true,
+    category_id: null,
+    account_id: null,
+    parcela_grupo: null,
+    parcela_num: null,
+    parcela_total: null,
+  }
+
+  it('repete do mês seguinte em diante, no mesmo dia (ou último dia do mês)', () => {
+    const r = repeticoesRecorrentes([base], '2026-01-01', '2026-04-30')
+    expect(r.map((x) => x.data)).toEqual(['2026-02-28', '2026-03-31', '2026-04-30'])
+    expect(r[0]).toMatchObject({ virtual: true, origem_id: 'a', id: 'a@2026-02' })
+  })
+
+  it('para no recorrente_ate (última cobrança incluída)', () => {
+    const r = repeticoesRecorrentes([{ ...base, recorrente_ate: '2026-03-01' }], '2026-01-01', '2026-12-31')
+    expect(r.map((x) => x.data.slice(0, 7))).toEqual(['2026-02', '2026-03'])
+  })
+
+  it('só devolve o que cai no intervalo pedido', () => {
+    expect(repeticoesRecorrentes([base], '2026-03-01', '2026-03-31').map((x) => x.data)).toEqual(['2026-03-31'])
+  })
+
+  it('"fixo" antigo (recorrente sem repete) NÃO se repete — evita contar em dobro', () => {
+    expect(repeticoesRecorrentes([{ ...base, repete: false }], '2026-01-01', '2026-12-31')).toEqual([])
   })
 })

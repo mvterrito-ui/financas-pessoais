@@ -7,6 +7,7 @@ import {
   preencherAdiante,
   resumo,
   itemVisivel,
+  aplicarFluxo,
   somarSeries,
   total,
   type Grupo,
@@ -79,5 +80,31 @@ describe('anual.calc', () => {
     expect(r.saldo[1]).toBe(-180) // fev: só despesa
     expect(r.saldo[2]).toBeUndefined() // mar: nada lançado
     expect(r.porGrupo.get('var')![1]).toBe(180)
+  })
+})
+
+describe('aplicarFluxo (Fluxo de Caixa -> Controle Anual)', () => {
+  const valores = indexar([
+    { item_id: 'merc', mes: '2026-01-01', valor: 999 }, // digitado, mas o item está ligado
+    { item_id: 'luz', mes: '2026-01-01', valor: 130 }, // manual, não ligado
+  ])
+  const fluxo = [
+    { item_id: 'merc', mes: '2026-01-01', moeda: 'BRL', valor: 300 },
+    { item_id: 'merc', mes: '2026-01-01', moeda: 'USD', valor: 10 },
+    { item_id: 'merc', mes: '2026-02-01', moeda: 'BRL', valor: '250' },
+  ]
+  const emReal = (v: number, m: string) => (m === 'USD' ? v * 5 : v)
+
+  it('item ligado usa só o Fluxo (convertido); o manual dos outros fica', () => {
+    const r = aplicarFluxo(valores, fluxo, new Set(['merc']), emReal)
+    expect(r.get('merc|2026-01-01')).toBe(350) // 300 + 10×5 (o 999 digitado não conta)
+    expect(r.get('merc|2026-02-01')).toBe(250)
+    expect(r.get('luz|2026-01-01')).toBe(130)
+  })
+
+  it('sem ligação, nada muda', () => {
+    const r = aplicarFluxo(valores, fluxo, new Set(), emReal)
+    expect(r.get('merc|2026-01-01')).toBe(999)
+    expect(r.has('merc|2026-02-01')).toBe(false)
   })
 })

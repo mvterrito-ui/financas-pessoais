@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { formatBRL } from '@/server/fluxo/fluxo.calc'
@@ -17,10 +17,9 @@ import { MESES_CURTOS, TIPOS } from './tipos'
 
 type Resumo = ReturnType<typeof resumoFn>
 
-// Paleta categórica validada (validate_palette.js, modo claro, fundo #fff):
-// CVD ΔE 24,7 · visão normal ΔE 33,6 · contraste ≥ 3:1.
-// Receita/Despesas são IDENTIDADE (não status) -> azul/laranja, não verde/vermelho.
-const VARS = { '--serie-1': '#2a78d6', '--serie-2': '#eb6834' } as CSSProperties
+// Cores das séries: --serie-1/--serie-2 em globals.css (paleta validada com
+// validate_palette.js no claro E no escuro). Receita/Despesas são IDENTIDADE,
+// não status -> azul/laranja, não verde/vermelho.
 
 const pct = (p: number | null) =>
   p === null ? '' : ` · ${p.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
@@ -124,7 +123,7 @@ export function GraficosAnual({
   if (!temDados) return null
 
   return (
-    <div className="grid gap-5 lg:grid-cols-2" style={VARS}>
+    <div className="grid gap-5 lg:grid-cols-2">
       {/* Receita × Despesas por mês */}
       <Card className="p-4 lg:col-span-2">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">

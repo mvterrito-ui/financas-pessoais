@@ -51,6 +51,65 @@
   --animate-fade-in: fade-in 0.25s ease-out;
 }
 
+/* =====================================================================
+   Modo ESCURO — ativado por data-theme="dark" no <html> (script no layout,
+   antes da 1ª pintura). Troca os tokens do tema e REMAPEIA alguns tons da
+   paleta usados em selos/avisos (fundo claro + texto escuro) pra que eles
+   virem fundo escuro + texto claro sozinhos, sem dark: espalhado no código.
+   ===================================================================== */
+:root {
+  /* séries dos gráficos (paleta validada: validate_palette.js, modo claro) */
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-background: #0a100e;
+  --color-foreground: #e6edea;
+  --color-card: #111916;
+  --color-card-foreground: #e6edea;
+  --color-primary: #34d399;
+  --color-primary-foreground: #04281b;
+  --color-secondary: #10261d;
+  --color-secondary-foreground: #a7f3d0;
+  --color-muted: #18221f;
+  --color-muted-foreground: #93a39d;
+  --color-accent: #14271f;
+  --color-accent-foreground: #a7f3d0;
+  --color-destructive: #f87171;
+  --color-destructive-foreground: #1f0a0a;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-border: #22302b;
+  --color-input: #2b3b35;
+  --color-ring: #34d399;
+  --color-sidebar: #060d0a;
+
+  /* tons "de fundo claro" viram fundos escuros; "de texto escuro" viram claros */
+  --color-emerald-50: #0f2a20;
+  --color-emerald-600: #34d399;
+  --color-emerald-700: #6ee7b7;
+  --color-emerald-800: #a7f3d0;
+  --color-emerald-900: #d1fae5;
+  --color-sky-50: #0c2333;
+  --color-sky-600: #38bdf8;
+  --color-sky-700: #7dd3fc;
+  --color-orange-50: #2a1708;
+  --color-orange-600: #fb923c;
+  --color-orange-700: #fdba74;
+  --color-amber-50: #2a2008;
+  --color-amber-600: #fbbf24;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
+  --color-amber-900: #fef3c7;
+
+  /* gráficos: passos da mesma paleta, validados no fundo escuro (#111916) */
+  --serie-1: #3987e5;
+  --serie-2: #d95926;
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -67,6 +126,7 @@
     background-color: var(--color-background);
     /* brilho esmeralda bem sutil no topo (mesma linguagem do login) */
     background-image: radial-gradient(1100px 420px at 75% -160px, rgba(16, 185, 129, 0.09), transparent 70%);
+    transition: background-color 0.2s ease, color 0.2s ease;
     background-attachment: fixed;
     color: var(--color-foreground);
   }

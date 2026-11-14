@@ -6,14 +6,27 @@ import {
   transactionUpdateSchema,
 } from './transaction.schema'
 import { statementImportSchema } from './statement.schema'
-import { gerarParcelas } from './fluxo.calc'
+import { gerarParcelas, repeticoesRecorrentes, type Transaction } from './fluxo.calc'
+import { hojeISO } from '@/lib/utils'
 
 // O service é a regra de negócio: valida com o Zod e CARIMBA o tenant_id no
 // create (o usuário nunca escolhe o tenant — ele vem do login).
 export const transactionService = {
-  list: (ctx: AuthContext, filtros: unknown = {}) => {
+  // Lançamentos reais + REPETIÇÕES automáticas dos recorrentes no período
+  // (marcadas com virtual: true). Sem data final no filtro, as repetições vão
+  // só até hoje (o futuro aparece quando você navega pro mês).
+  list: async (ctx: AuthContext, filtros: unknown = {}) => {
     const f = transactionFilterSchema.parse(filtros)
-    return transactionRepo.list(ctx.supabase, f)
+    const de = f.de ?? '2000-01-01'
+    const ate = f.ate ?? hojeISO()
+    const [reais, modelos] = await Promise.all([
+      transactionRepo.list(ctx.supabase, f),
+      transactionRepo.recorrentes(ctx.supabase, de, ate),
+    ])
+    const repeticoes = repeticoesRecorrentes(modelos as Transaction[], de, ate).filter(
+      (t) => !f.tipo || t.tipo === f.tipo,
+    )
+    return [...(reais as Transaction[]), ...repeticoes].sort((a, b) => b.data.localeCompare(a.data))
   },
 
   getById: (ctx: AuthContext, id: string) =>
@@ -34,6 +47,8 @@ export const transactionService = {
         data: p.data,
         descricao: values.descricao ?? null,
         recorrente: false, // parcela não é gasto fixo recorrente
+        repete: false,
+        recorrente_ate: null,
         category_id: values.category_id ?? null,
         account_id: values.account_id ?? null,
         parcela_grupo: grupo,

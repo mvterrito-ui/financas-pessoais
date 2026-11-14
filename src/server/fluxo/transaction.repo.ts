@@ -19,6 +19,20 @@ export const transactionRepo = {
     })
   },
 
+  // Lançamentos que se repetem e podem gerar repetições no intervalo:
+  // começaram até `ate` e não terminaram antes do mês de `de`.
+  async recorrentes(supabase: SupabaseClient, de: string, ate: string) {
+    const { data, error } = await supabase
+      .from('transaction')
+      .select('*')
+      .eq('ativo', true)
+      .eq('repete', true)
+      .lte('data', ate)
+      .or(`recorrente_ate.is.null,recorrente_ate.gte.${de.slice(0, 7)}-01`)
+    if (error) throw new Error(error.message)
+    return data
+  },
+
   // Quais desses external_id já existem (pra não duplicar na importação).
   // Em lotes: o .in() vai na URL, e um extrato grande estourava o tamanho dela.
   async existingExternalIds(supabase: SupabaseClient, ids: string[]) {

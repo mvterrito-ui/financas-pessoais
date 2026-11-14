@@ -7,7 +7,10 @@ export const categoryCreateSchema = z.object({
   tipo: z.enum(['entrada', 'saida']),
 })
 
-export const categoryUpdateSchema = parcial(categoryCreateSchema)
+export const categoryUpdateSchema = parcial(categoryCreateSchema).extend({
+  // Ligação com o Controle Anual (null = desliga).
+  annual_item_id: z.string().uuid().nullable().optional(),
+})
 
 export type CategoryCreate = z.infer<typeof categoryCreateSchema>
 export type CategoryUpdate = z.infer<typeof categoryUpdateSchema>

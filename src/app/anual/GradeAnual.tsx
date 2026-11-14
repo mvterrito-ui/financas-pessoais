@@ -11,6 +11,8 @@ import {
   Repeat,
   Trash2,
   MoreHorizontal,
+  Link2,
+  Download,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { MoneyCommit } from '@/components/ui/money-input'
@@ -135,6 +137,10 @@ export function GradeAnual(props: {
   onRemoverCategoria: (c: Categoria) => void
   onEditarGrupo: (g: Grupo) => void
   onRemoverGrupo: (g: Grupo) => void
+  /** item -> categorias do Fluxo que o alimentam (item ligado = só leitura). */
+  ligados: Map<string, string[]>
+  onLigarItem: (item: Item) => void
+  onPuxarFluxo: (g: Grupo) => void
 }) {
   const { mesDestaque, grupos, categorias, itens, valores, resumo: r } = props
   const [fechados, setFechados] = useState<Set<string>>(new Set())
@@ -172,6 +178,7 @@ export function GradeAnual(props: {
   )
 
   function linhaItem(item: Item, serie: Serie, recuo: boolean) {
+    const doFluxo = props.ligados.get(item.id)
     return (
       <tr key={item.id} className="group/linha">
         <td className={cn(COL_NOME, LINHA, 'py-1.5 pr-1', recuo ? 'pl-8' : 'pl-4')}>
@@ -183,10 +190,26 @@ export function GradeAnual(props: {
               {item.oculto && <EyeOff className="mr-1 inline h-3 w-3" />}
               {item.name}
             </span>
+            {doFluxo && (
+              <span
+                className="flex shrink-0 items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary"
+                title={`Vem do Fluxo de Caixa: ${doFluxo.join(', ')}`}
+              >
+                <Link2 className="h-3 w-3" /> Fluxo
+              </span>
+            )}
             <Acoes aberto={menu === `i-${item.id}`} onAlternar={alternarMenu(`i-${item.id}`)}>
-              <BotaoIcone titulo="Repetir nos meses seguintes (preenche os vazios)" onClick={() => props.onRepetir(item)}>
-                <Repeat className="h-3.5 w-3.5" />
+              <BotaoIcone
+                titulo={doFluxo ? `Ligado ao Fluxo: ${doFluxo.join(', ')} (alterar)` : 'Ligar a categorias do Fluxo de Caixa'}
+                onClick={() => props.onLigarItem(item)}
+              >
+                <Link2 className="h-3.5 w-3.5" />
               </BotaoIcone>
+              {!doFluxo && (
+                <BotaoIcone titulo="Repetir nos meses seguintes (preenche os vazios)" onClick={() => props.onRepetir(item)}>
+                  <Repeat className="h-3.5 w-3.5" />
+                </BotaoIcone>
+              )}
               <BotaoIcone titulo="Editar" onClick={() => props.onEditarItem(item)}>
                 <Pencil className="h-3.5 w-3.5" />
               </BotaoIcone>
@@ -207,12 +230,22 @@ export function GradeAnual(props: {
         </td>
         {r.meses.map((mes, i) => (
           <td key={mes} className={cn(COL_MES, LINHA, 'py-1', destaque(i))}>
-            <MoneyCommit
-              aria-label={`${item.name} em ${MESES_CURTOS[i]}`}
-              placeholder="—"
-              inicial={serie[i] ?? ''}
-              onCommit={(v) => props.onSalvar(item.id, mes, v)}
-            />
+            {doFluxo ? (
+              // Vem do Fluxo: só leitura (edite os lançamentos no Fluxo de Caixa).
+              <div
+                className="flex h-9 items-center justify-end rounded-lg bg-primary/[0.05] px-2.5 text-base tabular-nums text-foreground md:text-sm"
+                title={`Soma do Fluxo: ${doFluxo.join(', ')}`}
+              >
+                {serie[i] === undefined ? <span className="text-muted-foreground/60">—</span> : fmt(serie[i])}
+              </div>
+            ) : (
+              <MoneyCommit
+                aria-label={`${item.name} em ${MESES_CURTOS[i]}`}
+                placeholder="—"
+                inicial={serie[i] ?? ''}
+                onCommit={(v) => props.onSalvar(item.id, mes, v)}
+              />
+            )}
           </td>
         ))}
         <td className={cn(LINHA, 'px-3 py-1.5 text-right font-medium tabular-nums')}>{fmt(total(serie))}</td>
@@ -286,6 +319,12 @@ export function GradeAnual(props: {
                         <BotaoIcone titulo="Nova categoria" onClick={() => props.onNovaCategoria(g)}>
                           <FolderPlus className="h-3.5 w-3.5" />
                         </BotaoIcone>
+                        <BotaoIcone
+                          titulo="Puxar categorias do Fluxo (cria um item ligado pra cada uma)"
+                          onClick={() => props.onPuxarFluxo(g)}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </BotaoIcone>
                         <BotaoIcone titulo="Editar grupo" onClick={() => props.onEditarGrupo(g)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </BotaoIcone>
@@ -326,6 +365,14 @@ export function GradeAnual(props: {
                             className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
                           >
                             <Plus className="h-3.5 w-3.5" /> Adicionar o primeiro item
+                          </button>
+                          <span className="mx-2">ou</span>
+                          <button
+                            type="button"
+                            onClick={() => props.onPuxarFluxo(g)}
+                            className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                          >
+                            <Download className="h-3.5 w-3.5" /> puxar as categorias do Fluxo
                           </button>
                         </td>
                       </tr>

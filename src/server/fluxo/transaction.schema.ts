@@ -11,6 +11,14 @@ const transactionBase = z.object({
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use o formato AAAA-MM-DD'),
   descricao: z.string().trim().max(200).optional().nullable(),
   recorrente: z.boolean().optional().default(false),
+  // Repetir todo mês automaticamente (a partir da data) e até quando.
+  repete: z.boolean().optional().default(false),
+  // Último mês em que acontece (AAAA-MM-01); null/ausente = todo mês.
+  recorrente_ate: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])-01$/, 'Use o formato AAAA-MM-01')
+    .nullable()
+    .optional(),
   // nº de parcelas (>= 2). Ausente/1 = compra à vista. 'valor' é sempre o TOTAL.
   parcelas: z.number().int().min(2).max(72).optional(),
   category_id: z.string().uuid().optional().nullable(),
