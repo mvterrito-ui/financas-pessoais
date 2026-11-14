@@ -181,15 +181,17 @@ export default function DashboardClient() {
       )}
       {/* Patrimônio em destaque */}
       <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <Card className="bg-primary p-5 text-primary-foreground md:col-span-1">
-          <p className="text-sm opacity-80">Patrimônio ({rotuloMes(patMes)})</p>
-          <p className="mt-1 text-3xl font-bold tabular-nums">{formatBRL(patAtual)}</p>
-          {patVar !== null && (
-            <p className="mt-1 text-sm opacity-90">
-              {patVar >= 0 ? '▲' : '▼'} {Math.abs(patVar).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% vs mês anterior
-            </p>
-          )}
-        </Card>
+        <StatCard
+          label={`Patrimônio (${rotuloMes(patMes)})`}
+          value={formatBRL(patAtual)}
+          icon={Landmark}
+          highlight
+          sub={
+            patVar === null
+              ? 'Sem mês anterior pra comparar'
+              : `${patVar >= 0 ? '▲' : '▼'} ${Math.abs(patVar).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% vs mês anterior`
+          }
+        />
         <StatCard
           label="Ações (valor atual)"
           value={formatBRL(acao.atual)}
@@ -256,13 +258,13 @@ export default function DashboardClient() {
             </p>
           ) : (
             <div className="flex h-48 items-end gap-2">
-              {serie.map((p) => (
+              {serie.map((p, i) => (
                 <div key={p.mes} className="flex flex-1 flex-col items-center gap-1">
                   <span className="text-[10px] tabular-nums text-muted-foreground">
                     {(p.total / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}k
                   </span>
                   <div
-                    className="w-full rounded-t bg-primary/80"
+                    className={`w-full max-w-10 rounded-t-[4px] transition-colors ${i === serie.length - 1 ? 'bg-primary' : 'bg-primary/35 hover:bg-primary/60'}`}
                     style={{ height: `${Math.max(4, (p.total / maxSerie) * 150)}px` }}
                     title={formatBRL(p.total)}
                   />

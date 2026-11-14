@@ -147,27 +147,34 @@ export function Sidebar({ aberto = false, onFechar }: { aberto?: boolean; onFech
       )}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] shrink-0 flex-col bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-200',
-          'md:static md:z-auto md:w-60 md:translate-x-0 md:shadow-none',
+          'fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] shrink-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-200',
+          'md:relative md:z-auto md:w-64 md:translate-x-0 md:shadow-none',
           aberto ? 'translate-x-0' : '-translate-x-full',
         )}
       >
+        {/* Brilho esmeralda no topo (mesma linguagem do login) */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-64"
+          style={{ background: 'radial-gradient(90% 70% at 10% 0%, rgba(52,211,153,0.16), transparent 70%)' }}
+        />
+
         {/* Marca */}
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-accent/20 text-xl">
+        <div className="relative flex items-center gap-3 px-5 pb-6 pt-6">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-xl ring-1 ring-white/15">
             💰
           </span>
           <div className="leading-tight">
             <div className="text-base font-semibold tracking-tight text-white">Finanças</div>
-            <div className="text-[11px] text-sidebar-foreground/50">Suas finanças pessoais</div>
+            <div className="text-[11px] text-sidebar-foreground/55">Seu dinheiro, mês a mês</div>
           </div>
         </div>
 
         {/* Navegação */}
-        <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-3">
+        <nav className="relative flex-1 space-y-5 overflow-y-auto px-3 pb-3">
           {secoes.map((secao) => (
             <div key={secao.titulo}>
-              <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+              <div className="px-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/40">
                 {secao.titulo}
               </div>
               <div className="space-y-0.5">
@@ -193,21 +200,21 @@ export function Sidebar({ aberto = false, onFechar }: { aberto?: boolean; onFech
                       href={to}
                       onClick={onFechar}
                       className={cn(
-                        'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                        'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all',
                         ativo
-                          ? 'bg-white/10 text-white'
-                          : 'text-sidebar-foreground/75 hover:bg-white/5 hover:text-white',
+                          ? 'bg-gradient-to-r from-emerald-400/15 to-emerald-400/[0.03] text-white ring-1 ring-inset ring-emerald-300/15'
+                          : 'text-sidebar-foreground/70 hover:bg-white/[0.06] hover:text-white',
                       )}
                     >
                       {ativo && (
-                        <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-sidebar-accent" />
+                        <span className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-sidebar-accent shadow-[0_0_12px_rgba(52,211,153,0.8)]" />
                       )}
                       <Icon
                         className={cn(
                           'h-4 w-4 shrink-0',
                           ativo
-                            ? 'text-sidebar-accent'
-                            : 'text-sidebar-foreground/60 group-hover:text-white',
+                            ? 'text-emerald-300'
+                            : 'text-sidebar-foreground/50 group-hover:text-white',
                         )}
                       />
                       {label}
@@ -220,13 +227,13 @@ export function Sidebar({ aberto = false, onFechar }: { aberto?: boolean; onFech
         </nav>
 
         {/* Usuário + sair */}
-        <div className="border-t border-white/10 p-3">
+        <div className="relative border-t border-white/10 p-3">
           <button
             onClick={abrirPerfil}
             title="Editar perfil"
-            className="group mb-1 flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-white/5"
+            className="group mb-1 flex w-full items-center gap-3 rounded-xl bg-white/[0.04] px-2.5 py-2.5 text-left ring-1 ring-white/[0.06] transition-colors hover:bg-white/[0.08]"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-xs font-semibold text-white">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-xs font-semibold text-white shadow-md shadow-emerald-900/40">
               {iniciais(nome)}
             </span>
             <div className="min-w-0 flex-1">
@@ -237,7 +244,7 @@ export function Sidebar({ aberto = false, onFechar }: { aberto?: boolean; onFech
           </button>
           <button
             onClick={sair}
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-white/5 hover:text-white"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/60 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
             <LogOut className="h-4 w-4" />
             Sair

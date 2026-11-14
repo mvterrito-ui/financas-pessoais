@@ -65,6 +65,9 @@
 @layer base {
   body {
     background-color: var(--color-background);
+    /* brilho esmeralda bem sutil no topo (mesma linguagem do login) */
+    background-image: radial-gradient(1100px 420px at 75% -160px, rgba(16, 185, 129, 0.09), transparent 70%);
+    background-attachment: fixed;
     color: var(--color-foreground);
   }
 }

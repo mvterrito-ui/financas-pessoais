@@ -566,13 +566,13 @@ export default function PatrimonioClient() {
             </p>
           ) : (
             <div className="flex h-56 items-end gap-2">
-              {serie.map((ponto) => (
+              {serie.map((ponto, i) => (
                 <div key={ponto.mes} className="flex flex-1 flex-col items-center gap-1">
                   <span className="text-[10px] tabular-nums text-muted-foreground">
                     {(ponto.total / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}k
                   </span>
                   <div
-                    className="w-full rounded-t bg-primary/80 transition-all hover:bg-primary"
+                    className={`w-full max-w-10 rounded-t-[4px] transition-colors ${i === serie.length - 1 ? 'bg-primary' : 'bg-primary/35 hover:bg-primary/60'}`}
                     style={{ height: `${Math.max(4, (ponto.total / maxSerie) * 180)}px` }}
                     title={formatBRL(ponto.total)}
                   />
