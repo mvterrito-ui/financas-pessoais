@@ -3,6 +3,7 @@ import { precosB3 } from '@/server/cotacao'
 import { totais as carteiraTotais, type Fii } from '@/server/fii/fii.calc'
 import { totais as rfTotais, type FixedIncome } from '@/server/renda-fixa/renda-fixa.calc'
 import { valorAtual as criptoValor, type CryptoSummary } from '@/server/cripto/cripto.calc'
+import { pagoEstimado, type Consorcio, type Reajuste } from '@/server/consorcio/consorcio.calc'
 import { ORIGENS, mesAtualBR, type Origem } from './patrimonio.calc'
 
 // Sincronização mensal do Patrimônio. Roda em DOIS contextos:
@@ -50,11 +51,17 @@ async function valoresAtuais(
 ): Promise<Record<Origem, number | null>> {
   const ativos = (tabela: string) =>
     sb.from(tabela).select('*').eq('tenant_id', tenantId).eq('ativo', true)
-  const [fiis, acoes, rf, cripto] = await Promise.all([
+  const [fiis, acoes, rf, cripto, consorcios, reajustes] = await Promise.all([
     ativos('fii').then(ok) as Promise<Fii[]>,
     ativos('acao').then(ok) as Promise<Fii[]>,
     ativos('fixed_income').then(ok) as Promise<FixedIncome[]>,
     sb.from('crypto_summary').select('*').eq('tenant_id', tenantId).then(ok) as Promise<CryptoSummary[]>,
+    ativos('consorcio').then(ok) as Promise<Consorcio[]>,
+    sb
+      .from('consorcio_reajuste')
+      .select('id, consorcio_id, a_partir_parcela, valor_parcela')
+      .eq('tenant_id', tenantId)
+      .then(ok) as Promise<Reajuste[]>,
   ])
   const quotes = await precosB3([...fiis, ...acoes].map((f) => f.ticker))
   // Se faltou cotação de alguma posição (Yahoo fora/limite), o cálculo cairia
@@ -67,6 +74,10 @@ async function valoresAtuais(
     fii: semCotacao(fiis) ? null : carteiraTotais(fiis, quotes).atual,
     renda_fixa: rfTotais(rf).atual,
     cripto: criptoValor(cripto),
+    // Encerrado = a carta já virou o bem (que, se for o caso, entra como bem manual).
+    consorcio: consorcios
+      .filter((c) => c.status !== 'encerrado')
+      .reduce((s, c) => s + pagoEstimado(c, reajustes), 0),
   }
 }
 

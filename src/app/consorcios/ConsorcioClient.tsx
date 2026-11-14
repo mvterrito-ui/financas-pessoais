@@ -15,6 +15,8 @@ import {
   Trash2,
   Wallet,
   Hourglass,
+  TrendingUp,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
@@ -23,18 +25,21 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { MoneyCommit } from '@/components/ui/money-input'
 import { NumberCommit } from '@/components/ui/number-field'
 import { usePromptDialog } from '@/components/ui/prompt'
+import { invalidarSincronizacao } from '@/lib/sincronizar'
 import { cn } from '@/lib/utils'
 import { formatBRL } from '@/server/fluxo/fluxo.calc'
 import {
+  faixasDeParcela,
   faltaPagar,
   faltamParcelas,
   pagoEstimado,
+  parcelaAtual,
   pctQuitado,
   totais,
   type Consorcio,
+  type Reajuste,
   type StatusConsorcio,
   type TipoConsorcio,
 } from '@/server/consorcio/consorcio.calc'
@@ -57,11 +62,14 @@ export default function ConsorcioClient() {
   const router = useRouter()
   const ask = usePromptDialog()
   const [lista, setLista] = useState<Consorcio[]>([])
+  const [reajustes, setReajustes] = useState<Reajuste[]>([])
   const [carregado, setCarregado] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   const api = useCallback(
     async (url: string, init?: RequestInit) => {
+      // Mexeu num consórcio -> o Patrimônio (valor pago) sincroniza na próxima visita.
+      if (init?.method && init.method !== 'GET') invalidarSincronizacao()
       const res = await fetch(url, init)
       if (res.status === 401) {
         router.push('/login')
@@ -74,13 +82,24 @@ export default function ConsorcioClient() {
     [router],
   )
 
-  const buscar = useCallback(() => api('/api/consorcio') as Promise<Consorcio[]>, [api])
-  const recarregar = useCallback(() => buscar().then(setLista), [buscar])
+  const buscar = useCallback(
+    () =>
+      Promise.all([
+        api('/api/consorcio') as Promise<Consorcio[]>,
+        api('/api/consorcio/reajuste') as Promise<Reajuste[]>,
+      ]),
+    [api],
+  )
+  const aplicar = ([l, r]: [Consorcio[], Reajuste[]]) => {
+    setLista(l)
+    setReajustes(r)
+  }
+  const recarregar = useCallback(() => buscar().then(aplicar), [buscar])
 
   useEffect(() => {
     let vivo = true
     buscar()
-      .then((l) => vivo && setLista(l))
+      .then((d) => vivo && aplicar(d))
       .catch((e) => vivo && setErro((e as Error).message))
       .finally(() => vivo && setCarregado(true))
     return () => {
@@ -115,7 +134,7 @@ export default function ConsorcioClient() {
     { name: 'valor_carta', label: 'Valor da carta de crédito', type: 'money' as const, prefixo: 'R$', valor: c ? String(c.valor_carta) : undefined },
     { name: 'prazo_meses', label: 'Prazo total', type: 'number' as const, casas: 0, sufixo: 'meses', valor: c ? String(c.prazo_meses) : undefined },
     { name: 'parcelas_pagas', label: 'Parcelas já pagas', type: 'number' as const, casas: 0, valor: c ? String(c.parcelas_pagas) : undefined },
-    { name: 'valor_parcela', label: 'Valor da parcela atual', type: 'money' as const, prefixo: 'R$', valor: c ? String(c.valor_parcela) : undefined },
+    { name: 'valor_parcela', label: 'Valor da 1ª parcela (ou a atual, se não souber o histórico)', type: 'money' as const, prefixo: 'R$', valor: c ? String(c.valor_parcela) : undefined },
     { name: 'status', label: 'Situação', type: 'select' as const, options: opcoes(STATUS), valor: c?.status },
   ]
   const corpo = (v: Record<string, string>) => ({
@@ -147,12 +166,53 @@ export default function ConsorcioClient() {
     patch(c.id, corpo(v))
   }
 
+  // Reajuste: "a partir da parcela nº X, a parcela passa a ser R$ Y".
+  async function reajustar(c: Consorcio) {
+    const v = await ask({
+      title: `Reajuste da parcela · ${c.nome}`,
+      submitLabel: 'Salvar reajuste',
+      fields: [
+        {
+          name: 'a_partir_parcela',
+          label: `A partir da parcela nº (de 1 a ${c.prazo_meses})`,
+          type: 'number',
+          casas: 0,
+          valor: String(Math.min(c.parcelas_pagas + 1, c.prazo_meses)),
+        },
+        {
+          name: 'valor_parcela',
+          label: 'Novo valor da parcela',
+          type: 'money',
+          prefixo: 'R$',
+          valor: String(parcelaAtual(c, reajustes)),
+        },
+      ],
+    })
+    if (!v?.a_partir_parcela) return
+    acao(() =>
+      api('/api/consorcio/reajuste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consorcio_id: c.id,
+          a_partir_parcela: Number(v.a_partir_parcela),
+          valor_parcela: Number(v.valor_parcela) || 0,
+        }),
+      }),
+    )
+  }
+
+  function removerReajuste(r: Reajuste) {
+    if (!confirm(`Remover o reajuste a partir da parcela ${r.a_partir_parcela}?`)) return
+    acao(() => api(`/api/consorcio/reajuste/${r.id}`, { method: 'DELETE' }))
+  }
+
   function remover(c: Consorcio) {
     if (!confirm(`Remover o consórcio "${c.nome}"?`)) return
     acao(() => api(`/api/consorcio/${c.id}`, { method: 'DELETE' }))
   }
 
-  const t = totais(lista)
+  const t = totais(lista, reajustes)
 
   return (
     <PageLayout
@@ -196,7 +256,7 @@ export default function ConsorcioClient() {
               icon={CalendarClock}
               sub={`${t.emAndamento} em andamento`}
             />
-            <StatCard label="Já pago (estimado)" value={formatBRL(t.pago)} icon={Wallet} />
+            <StatCard label="Já pago" value={formatBRL(t.pago)} icon={Wallet} sub="Também aparece no Patrimônio" />
             <StatCard label="Falta pagar (estimado)" value={formatBRL(t.falta)} icon={Hourglass} />
           </div>
 
@@ -289,13 +349,23 @@ export default function ConsorcioClient() {
                   {/* Edição rápida */}
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Parcela</Label>
-                      <MoneyCommit
-                        prefixo="R$"
-                        aria-label={`Valor da parcela de ${c.nome}`}
-                        inicial={c.valor_parcela}
-                        onCommit={(v) => patch(c.id, { valor_parcela: Number(v) || 0 })}
-                      />
+                      <Label className="text-xs text-muted-foreground">Parcela atual</Label>
+                      <div className="flex gap-1.5">
+                        <div className="flex h-9 min-w-0 flex-1 items-center justify-end rounded-lg border border-input bg-muted/40 px-2.5 text-sm font-semibold tabular-nums">
+                          {formatBRL(parcelaAtual(c, reajustes))}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 shrink-0"
+                          onClick={() => reajustar(c)}
+                          aria-label={`Reajustar a parcela de ${c.nome}`}
+                          title="Reajustar parcela"
+                        >
+                          <TrendingUp />
+                        </Button>
+                      </div>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Pagas</Label>
@@ -323,15 +393,55 @@ export default function ConsorcioClient() {
                     </div>
                   </div>
 
+                  {/* Histórico da parcela (só aparece se houver reajuste) */}
+                  {(() => {
+                    const faixas = faixasDeParcela(c, reajustes)
+                    if (faixas.length < 2) return null
+                    return (
+                      <div className="mt-3 rounded-xl bg-muted/50 p-2.5">
+                        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Histórico da parcela
+                        </div>
+                        <ul className="space-y-1 text-xs">
+                          {faixas.map((f) => (
+                            <li key={f.de} className="flex items-center gap-2">
+                              <span className="w-24 shrink-0 text-muted-foreground">
+                                {f.ate === null ? `${f.de}ª em diante` : `${f.de}ª–${f.ate}ª`}
+                              </span>
+                              <span className="font-medium tabular-nums">{formatBRL(f.valor)}</span>
+                              {f.variacaoPct !== null && (
+                                <span className="tabular-nums text-muted-foreground">
+                                  {f.variacaoPct >= 0 ? '+' : ''}
+                                  {f.variacaoPct.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%
+                                </span>
+                              )}
+                              {f.reajuste && (
+                                <button
+                                  type="button"
+                                  onClick={() => removerReajuste(f.reajuste!)}
+                                  aria-label={`Remover reajuste da parcela ${f.de}`}
+                                  title="Remover reajuste"
+                                  className="ml-auto flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )
+                  })()}
+
                   {/* Rodapé */}
                   <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-3 text-xs">
                     <div>
-                      <div className="text-muted-foreground">Já pago ≈</div>
-                      <div className="font-semibold tabular-nums">{formatBRL(pagoEstimado(c))}</div>
+                      <div className="text-muted-foreground">Já pago</div>
+                      <div className="font-semibold tabular-nums">{formatBRL(pagoEstimado(c, reajustes))}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-muted-foreground">Falta ≈</div>
-                      <div className="font-semibold tabular-nums">{formatBRL(faltaPagar(c))}</div>
+                      <div className="font-semibold tabular-nums">{formatBRL(faltaPagar(c, reajustes))}</div>
                     </div>
                   </div>
                 </Card>
@@ -340,7 +450,8 @@ export default function ConsorcioClient() {
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            ≈ Estimativas pelo valor atual da parcela (consórcios costumam ter reajuste anual).
+            Já pago soma cada parcela pelo valor da época. Quando a parcela for reajustada, use o botão de
+            reajuste (↗) no card. ≈ “Falta” usa a parcela atual, até o próximo reajuste.
           </p>
         </>
       )}

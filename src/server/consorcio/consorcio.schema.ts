@@ -23,3 +23,10 @@ export const consorcioUpdateSchema = parcial(base).refine(
   (d) => d.parcelas_pagas === undefined || d.prazo_meses === undefined || d.parcelas_pagas <= d.prazo_meses,
   { message: 'Parcelas pagas não pode passar do prazo', path: ['parcelas_pagas'] },
 )
+
+// Reajuste: a partir da parcela nº X, o valor passa a ser Y (upsert por parcela).
+export const reajusteSetSchema = z.object({
+  consorcio_id: z.string().uuid(),
+  a_partir_parcela: z.number().int().min(1).max(400),
+  valor_parcela: z.number().min(0),
+})

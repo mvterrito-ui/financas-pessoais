@@ -391,7 +391,7 @@ export default function PatrimonioClient() {
           label="Investimentos"
           value={formatBRL(totalInvestBRL)}
           icon={PiggyBank}
-          sub="Ações, FIIs, Renda Fixa e Cripto"
+          sub="Ações, FIIs, Renda Fixa, Cripto e Consórcios"
         />
         <StatCard
           label="Outros bens (manual)"
