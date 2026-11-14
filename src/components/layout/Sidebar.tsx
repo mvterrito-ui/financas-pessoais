@@ -15,6 +15,7 @@ import {
   Sparkles,
   BarChart3,
   CalendarRange,
+  Handshake,
   LogOut,
   Pencil,
   type LucideIcon,
@@ -67,6 +68,7 @@ const secoes: Secao[] = [
       { to: '/fii', label: 'FIIs', icon: Building2, emoji: '🏢' },
       { to: '/renda-fixa', label: 'Renda Fixa', icon: Landmark, emoji: '🏦' },
       { to: '/cripto', label: 'Cripto', icon: Bitcoin, emoji: '🪙' },
+      { to: '/consorcios', label: 'Consórcios', icon: Handshake, emoji: '🤝' },
     ],
   },
 ]
