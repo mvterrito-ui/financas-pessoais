@@ -17,9 +17,8 @@ import { MESES_CURTOS, TIPOS } from './tipos'
 
 type Resumo = ReturnType<typeof resumoFn>
 
-// Cores das séries: --serie-1/--serie-2 em globals.css (paleta validada com
-// validate_palette.js no claro E no escuro). Receita/Despesas são IDENTIDADE,
-// não status -> azul/laranja, não verde/vermelho.
+// Cores das séries: --serie-1/--serie-2 em globals.css (claro e escuro).
+// Receita/Despesas são identidade, não status: azul/laranja em vez de verde/vermelho.
 
 const pct = (p: number | null) =>
   p === null ? '' : ` · ${p.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`

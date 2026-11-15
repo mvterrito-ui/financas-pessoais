@@ -29,7 +29,6 @@ export type CarteiraConfig = {
   titulo: string
   descricao: string
   icon: LucideIcon
-  emoji: string
   /** "FII", "ação"... usado nos botões e confirmações. */
   nome: string
   novoLabel: string
@@ -169,7 +168,7 @@ export function CarteiraTickers({ config: c }: { config: CarteiraConfig }) {
 
       {itens.length === 0 ? (
         <EmptyState
-          emoji={c.emoji}
+          icon={c.icon}
           titulo={c.vazioTitulo}
           descricao={c.vazioDescricao}
           acao={

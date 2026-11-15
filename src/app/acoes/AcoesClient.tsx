@@ -11,7 +11,6 @@ export default function AcoesClient() {
         titulo: 'Ações',
         descricao: 'Suas ações da B3 (cotação ao vivo)',
         icon: CandlestickChart,
-        emoji: '📊',
         nome: 'ação',
         novoLabel: 'Nova ação',
         vazioTitulo: 'Nenhuma ação ainda',

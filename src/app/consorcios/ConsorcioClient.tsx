@@ -231,7 +231,7 @@ export default function ConsorcioClient() {
 
       {carregado && lista.length === 0 ? (
         <EmptyState
-          emoji="🤝"
+          icon={Handshake}
           titulo="Nenhum consórcio ainda"
           descricao="Cadastre suas cotas: valor da carta, prazo, parcelas pagas e o valor da parcela. O app calcula quanto já foi e quanto falta."
           acao={
@@ -450,8 +450,8 @@ export default function ConsorcioClient() {
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            Já pago soma cada parcela pelo valor da época. Quando a parcela for reajustada, use o botão de
-            reajuste (↗) no card. ≈ “Falta” usa a parcela atual, até o próximo reajuste.
+            “Já pago” soma cada parcela pelo valor da época. Quando a parcela for reajustada, registre no
+            botão Reajustar parcela do card. “Falta” é estimado pela parcela atual.
           </p>
         </>
       )}

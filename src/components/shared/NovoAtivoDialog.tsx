@@ -126,7 +126,7 @@ export function NovoAtivoDialog({
               id="ativo-codigo"
               autoFocus
               autoComplete="off"
-              placeholder={`Ex.: ${exemplo} — ou parte do nome`}
+              placeholder={`Ex.: ${exemplo} ou parte do nome`}
               className="pl-9 uppercase placeholder:normal-case"
               value={termo}
               onChange={(e) => {

@@ -10,7 +10,7 @@ if [ -f .env.local ]; then
 fi
 
 if [ -z "${SUPABASE_DB_URL:-}" ]; then
-  echo "❌ Defina SUPABASE_DB_URL no .env.local."
+  echo "Defina SUPABASE_DB_URL no .env.local."
   echo "   Pegue em: Supabase > Settings > Database > Connection string > URI"
   echo "   (troque [YOUR-PASSWORD] pela senha do banco que você criou)"
   exit 1
@@ -18,6 +18,6 @@ fi
 
 mkdir -p backups
 ARQ="backups/backup-$(date +%Y%m%d-%H%M%S).sql"
-echo "📦 Gerando backup em $ARQ ..."
+echo "Gerando backup em $ARQ ..."
 pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges -f "$ARQ"
-echo "✅ Backup salvo: $ARQ"
+echo "Backup salvo: $ARQ"

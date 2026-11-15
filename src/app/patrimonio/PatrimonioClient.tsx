@@ -15,6 +15,12 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  ArrowLeftRight,
+  CandlestickChart,
+  Building2,
+  Bitcoin,
+  Handshake,
+  type LucideIcon,
 } from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
@@ -34,12 +40,22 @@ import {
   visivelNoMes,
   variacaoPct,
   type Moeda,
+  type Origem,
   type Rates,
   type WealthPlace,
   type WealthSnapshot,
 } from '@/server/patrimonio/patrimonio.calc'
 import { LinhaBem, type StatusSalvar } from './LinhaBem'
 import { sincronizarPatrimonio } from '@/lib/sincronizar'
+
+// Ícone de cada investimento automático (a lista ORIGENS fica no servidor, sem UI).
+const ICONE_ORIGEM: Record<Origem, LucideIcon> = {
+  acao: CandlestickChart,
+  fii: Building2,
+  renda_fixa: Landmark,
+  cripto: Bitcoin,
+  consorcio: Handshake,
+}
 
 const FALLBACK: Rates = { USD: 5.4, EUR: 5.9 }
 
@@ -169,7 +185,7 @@ export default function PatrimonioClient() {
       sujos.current.delete(place_id)
       await carregar()
       marcar(place_id, 'salvo')
-      // Some o "✓ Salvo" depois de 2s (se não mudou de estado nesse meio-tempo).
+      // Some o "Salvo" depois de 2s (se não mudou de estado nesse meio-tempo).
       setTimeout(
         () =>
           setStatus((atual) => {
@@ -236,7 +252,7 @@ export default function PatrimonioClient() {
       !confirm(
         `Remover "${place.name}" de vez?\n\n` +
           'Ele some do total e de TODO o histórico (gráficos e projeção). ' +
-          'Se só não tem mais esse bem, use Ocultar — mantém os meses anteriores.',
+          'Se só não tem mais esse bem, use Ocultar: os meses anteriores continuam.',
       )
     )
       return
@@ -354,7 +370,8 @@ export default function PatrimonioClient() {
           <MonthPicker value={mes} onChange={setMes} />
         </div>
         <span className="ml-auto self-center text-xs text-muted-foreground">
-          💱 USD {formatBRL(rates.USD)} · EUR {formatBRL(rates.EUR)}{' '}
+          <ArrowLeftRight className="mr-1 inline h-3 w-3" />
+          USD {formatBRL(rates.USD)} · EUR {formatBRL(rates.EUR)}{' '}
           {rateAoVivo ? '(ao vivo)' : '(estimado)'}
         </span>
       </div>
@@ -444,8 +461,11 @@ export default function PatrimonioClient() {
                   title={`Editar em ${o.nome}`}
                 >
                   <span className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-lg">
-                      {o.emoji}
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      {(() => {
+                        const Icone = ICONE_ORIGEM[o.origem]
+                        return <Icone className="h-[18px] w-[18px]" />
+                      })()}
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{p.name}</span>
@@ -558,7 +578,7 @@ export default function PatrimonioClient() {
         {/* Evolução (gráfico de barras CSS) */}
         <Card className="p-4">
           <div className="mb-4 text-sm font-medium text-muted-foreground">
-            📈 Evolução do patrimônio (em real)
+            Evolução do patrimônio (em real)
           </div>
           {serie.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">

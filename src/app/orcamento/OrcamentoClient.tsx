@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PieChart, Plus, Trash2, Wallet, Percent } from 'lucide-react'
+import {
+  PieChart,
+  Plus,
+  Trash2,
+  Wallet,
+  Percent,
+  CalendarDays,
+} from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -159,7 +166,8 @@ export default function OrcamentoClient() {
           <MonthPicker value={mes} onChange={setMes} />
         </div>
         <span className="ml-auto self-center text-sm text-muted-foreground">
-          📅 {rotuloMes(mes)}
+          <CalendarDays className="mr-1 inline h-3.5 w-3.5" />
+          {rotuloMes(mes)}
         </span>
       </div>
 
@@ -176,7 +184,7 @@ export default function OrcamentoClient() {
           value={`${soma.toLocaleString('pt-BR')}%`}
           icon={Percent}
           accent={somaOk ? 'primary' : 'warning'}
-          sub={somaOk ? 'Fechou 100% 👌' : 'O ideal é somar 100%'}
+          sub={somaOk ? 'Soma 100%' : 'O ideal é somar 100%'}
         />
       </div>
 
@@ -188,7 +196,7 @@ export default function OrcamentoClient() {
 
       {buckets.length === 0 ? (
         <EmptyState
-          emoji="🎯"
+          icon={PieChart}
           titulo="Nenhum balde ainda"
           descricao="Crie baldes (ex: Geral 50%, Reserva 10%) pra dividir sua renda."
           acao={

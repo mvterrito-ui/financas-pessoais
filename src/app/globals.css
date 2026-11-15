@@ -58,7 +58,7 @@
    virem fundo escuro + texto claro sozinhos, sem dark: espalhado no código.
    ===================================================================== */
 :root {
-  /* séries dos gráficos (paleta validada: validate_palette.js, modo claro) */
+  /* séries dos gráficos (azul/laranja: distinguíveis também por daltônicos) */
   --serie-1: #2a78d6;
   --serie-2: #eb6834;
 }

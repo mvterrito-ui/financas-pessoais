@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Sparkles, TrendingUp, PiggyBank, Wallet, RotateCcw } from 'lucide-react'
+import {
+  Sparkles,
+  TrendingUp,
+  PiggyBank,
+  Wallet,
+  RotateCcw,
+  Check,
+  TriangleAlert,
+} from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -129,7 +137,7 @@ export default function ProjecaoClient() {
   return (
     <PageLayout
       title="Projeção inteligente"
-      description="A partir do seu crescimento real, quanto seu patrimônio pode virar"
+      description="Até onde o patrimônio pode chegar, com base no histórico"
       icon={Sparkles}
     >
       {erro && (
@@ -140,7 +148,7 @@ export default function ProjecaoClient() {
 
       {places.length === 0 ? (
         <EmptyState
-          emoji="📈"
+          icon={TrendingUp}
           titulo="Sem patrimônio pra projetar ainda"
           descricao="Preencha alguns meses no Patrimônio que a projeção aparece aqui."
         />
@@ -185,7 +193,7 @@ export default function ProjecaoClient() {
                           : 'border-border text-muted-foreground hover:bg-muted'
                       }`}
                     >
-                      {on ? '✓ ' : ''}
+                      {on && <Check className="mr-1 inline h-3.5 w-3.5" />}
                       {p.name}
                       {p.moeda !== 'BRL' && (
                         <span className="ml-1 text-[10px] opacity-60">{p.moeda}</span>
@@ -229,7 +237,7 @@ export default function ProjecaoClient() {
                 <p className="text-xs text-muted-foreground">
                   ≈ {anualEquivalente.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% ao ano
                   {taxaAuto !== null &&
-                    ` · 📊 histórico: ${taxaAuto.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%/mês`}
+                    ` · histórico: ${taxaAuto.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%/mês`}
                 </p>
               </div>
 
@@ -265,9 +273,12 @@ export default function ProjecaoClient() {
           </div>
 
           {semHistorico && (
-            <p className="mb-4 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700">
-              ⚠️ Preciso de pelo menos 2 meses com valor (e crescendo) pra calcular sua taxa
-              automática. Enquanto isso, ajuste o % na mão acima.
+            <p className="mb-4 flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700">
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                São necessários pelo menos 2 meses com valor pra calcular a taxa automática. Até lá,
+                ajuste o % manualmente acima.
+              </span>
             </p>
           )}
 
@@ -298,7 +309,7 @@ export default function ProjecaoClient() {
           {/* Gráfico de projeção (barras por ano) */}
           <Card className="p-4">
             <div className="mb-4 text-sm font-medium text-muted-foreground">
-              🔮 Projeção ano a ano {final.aportado > 0 && '(barra cheia = total; faixa clara = aportes)'}
+              Projeção ano a ano {final.aportado > 0 && '(barra cheia = total; faixa clara = aportes)'}
             </div>
             <div className="flex h-60 items-end gap-2">
               {projecao.map((p) => {

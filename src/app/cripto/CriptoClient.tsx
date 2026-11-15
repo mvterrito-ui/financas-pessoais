@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bitcoin, Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent } from 'lucide-react'
+import {
+  Bitcoin,
+  Plus,
+  Trash2,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  Percent,
+  ArrowLeftRight,
+  ChevronRight,
+} from 'lucide-react'
 import { invalidarSincronizacao } from '@/lib/sincronizar'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
@@ -228,7 +238,8 @@ export default function CriptoClient() {
           </Select>
         </div>
         <span className="ml-auto self-center text-xs text-muted-foreground">
-          💱 USD {formatBRL(usd)}
+          <ArrowLeftRight className="mr-1 inline h-3 w-3" />
+          USD {formatBRL(usd)}
         </span>
       </div>
 
@@ -269,7 +280,7 @@ export default function CriptoClient() {
 
       {linhas.length === 0 ? (
         <EmptyState
-          emoji="🪙"
+          icon={Bitcoin}
           titulo={`Sem corretoras em ${ano}`}
           descricao="Adicione uma corretora pra registrar quanto aplicou e o resultado."
           acao={
@@ -303,7 +314,8 @@ export default function CriptoClient() {
                         className="font-medium text-primary underline-offset-2 hover:underline"
                         title="Ver detalhamento"
                       >
-                        {l.exchange} 🔎
+                        {l.exchange}
+                        <ChevronRight className="ml-0.5 inline h-3.5 w-3.5" />
                       </button>
                     </td>
                     <td className="px-4 py-3">
@@ -376,7 +388,7 @@ export default function CriptoClient() {
       <Modal
         open={detalhe !== null}
         onClose={() => setDetalhe(null)}
-        title={detalhe ? `${detalhe.exchange} · ${detalhe.ano} — detalhe 🔎` : ''}
+        title={detalhe ? `Detalhamento · ${detalhe.exchange} ${detalhe.ano}` : ''}
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between">

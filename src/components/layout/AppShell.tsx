@@ -4,7 +4,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import { Sidebar } from './Sidebar'
 
-// Abre/fecha o menu no celular (o botão ☰ fica no cabeçalho de cada página).
+// Abre/fecha o menu no celular (o botão de menu fica no cabeçalho de cada página).
 const MenuCtx = createContext<() => void>(() => {})
 export const useAbrirMenu = () => useContext(MenuCtx)
 

@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs'
 // Só roda com confirmação explícita: npm run seed:demo -- --sim
 if (!process.argv.includes('--sim')) {
   console.error(
-    '⚠️  Este script cria um login com senha PÚBLICA no projeto do .env.local.\n' +
+    'Atenção: este script cria um usuário de demonstração no projeto do .env.local.\n' +
       '    Use só num projeto Supabase de teste. Pra confirmar: npm run seed:demo -- --sim',
   )
   process.exit(1)
@@ -59,11 +59,11 @@ if (!user) {
   })
   ok(error, 'createUser')
   user = data.user
-  console.log(`👤 Usuário demo criado: ${DEMO_EMAIL}`)
+  console.log(`Usuário demo criado: ${DEMO_EMAIL}`)
 } else {
   // Já existe: troca a senha pela desta execução (a antiga pode ter vazado).
   ok((await supabase.auth.admin.updateUserById(user.id, { password: DEMO_SENHA })).error, 'updateUser')
-  console.log(`👤 Usuário demo já existia: ${DEMO_EMAIL} (senha trocada)`)
+  console.log(`Usuário demo já existia: ${DEMO_EMAIL} (senha trocada)`)
 }
 
 // o gatilho handle_new_user já criou tenant + profile
@@ -74,7 +74,7 @@ const { data: profile, error: errProf } = await supabase
   .single()
 ok(errProf, 'profile')
 const tenant_id = profile.tenant_id
-console.log(`🏠 tenant ${tenant_id}`)
+console.log(`tenant ${tenant_id}`)
 
 // ---- 2) limpa dados antigos do demo (re-rodável) ---------------------
 for (const t of ['transaction', 'crypto_item', 'crypto_summary', 'fii', 'fixed_income', 'wealth_snapshot', 'account', 'category']) {
@@ -133,7 +133,7 @@ for (let p = 0; p < 12; p++) {
   })
 }
 ok((await supabase.from('transaction').insert(txs)).error, 'inserir transaction')
-console.log(`💸 ${txs.length} lançamentos`)
+console.log(`${txs.length} lançamentos`)
 
 // ---- 5) patrimônio: snapshots crescentes nos lugares do gatilho ------
 // Conta nova começa vazia (0018): cria os bens manuais do demo se faltarem.
@@ -164,7 +164,7 @@ for (const pl of places) {
   })
 }
 ok((await supabase.from('wealth_snapshot').insert(snaps)).error, 'inserir wealth_snapshot')
-console.log(`📈 ${snaps.length} snapshots de patrimônio`)
+console.log(`${snaps.length} snapshots de patrimônio`)
 
 // ---- 6) FIIs, Renda Fixa e Cripto ------------------------------------
 ok((await supabase.from('fii').insert([
@@ -185,8 +185,8 @@ ok((await supabase.from('crypto_item').insert([
   { tenant_id, summary_id: resumo.id, label: 'ETH', valor: 1500, ordem: 2 },
   { tenant_id, summary_id: resumo.id, label: 'Outros', valor: 500, ordem: 3 },
 ])).error, 'inserir crypto_item')
-console.log('🏢 FIIs · 🏦 Renda Fixa · 🪙 Cripto')
+console.log('FIIs, renda fixa e cripto')
 
-console.log('\n✅ Demo pronto!')
+console.log('\nDemo pronto.')
 console.log(`   Login:  ${DEMO_EMAIL}`)
 console.log(`   Senha:  ${DEMO_SENHA}`)

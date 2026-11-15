@@ -27,7 +27,7 @@ if (!user) throw new Error('Passe o e-mail (há vários usuários ou não encont
 const { data: profile } = await supabase
   .from('profile').select('tenant_id').eq('id', user.id).single()
 const tenant_id = profile.tenant_id
-console.log(`👤 Importando cripto para: ${user.email}`)
+console.log(`Importando cripto para: ${user.email}`)
 
 const CORRETORAS = ['BINANCE', 'BYBIT', 'BYBIT II', 'GATE']
 const ANOS = ['2024', '2025', '2026']
@@ -66,6 +66,6 @@ const { error } = await supabase
   .upsert(registros, { onConflict: 'tenant_id,exchange,ano' })
 if (error) throw error
 
-console.log(`✅ ${registros.length} resumos de cripto importados (upsert):`)
+console.log(`${registros.length} resumos de cripto importados (upsert):`)
 for (const r of registros)
   console.log(`   ${r.ano} ${r.exchange}: aplicado $${r.aplicado} · L/P $${r.resultado}`)

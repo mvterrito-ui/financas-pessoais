@@ -13,6 +13,9 @@ import {
   ArrowDownRight,
   Scale,
   Upload,
+  Receipt,
+  CalendarDays,
+  CreditCard,
 } from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
@@ -380,7 +383,7 @@ export default function FluxoClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ account_id: impConta || null, itens: impItens }),
       })
-      setImpResumo(`✅ ${r.importados} importados · ${r.ignorados} já existiam.`)
+      setImpResumo(`${r.importados} importados · ${r.ignorados} já existiam.`)
       setImpItens([])
       await carregarTx()
     } catch (e) {
@@ -471,7 +474,8 @@ export default function FluxoClient() {
           </Button>
         )}
         <span className="ml-auto self-center text-sm text-muted-foreground">
-          {fMes ? `📅 ${rotuloMes(fMes)}` : '📅 Todo o período'} · {txs.length} lançamento
+          <CalendarDays className="mr-1 inline h-3.5 w-3.5" />
+          {fMes ? rotuloMes(fMes) : 'Todo o período'} · {txs.length} lançamento
           {txs.length === 1 ? '' : 's'}
         </span>
       </div>
@@ -508,7 +512,7 @@ export default function FluxoClient() {
       {/* Lista */}
       {txs.length === 0 ? (
         <EmptyState
-          emoji="🧾"
+          icon={Receipt}
           titulo={temFiltro ? 'Nenhum lançamento no filtro' : 'Nenhum lançamento ainda'}
           descricao={
             temFiltro
@@ -571,7 +575,7 @@ export default function FluxoClient() {
                       )}
                       {t.parcela_total && (
                         <Badge variant="secondary">
-                          💳 {t.parcela_num}/{t.parcela_total}
+                          <CreditCard className="h-3 w-3" /> {t.parcela_num}/{t.parcela_total}
                         </Badge>
                       )}
                     </div>
@@ -649,7 +653,7 @@ export default function FluxoClient() {
       <Modal
         open={aberto}
         onClose={() => setAberto(false)}
-        title={editId ? 'Editar lançamento ✏️' : 'Novo lançamento 🧾'}
+        title={editId ? 'Editar lançamento' : 'Novo lançamento'}
       >
         <form onSubmit={lancar} className="space-y-4">
           {/* Tipo */}
@@ -778,7 +782,7 @@ export default function FluxoClient() {
                   onChange={(e) => set('parcelado', e.target.checked)}
                   className="h-4 w-4 rounded border-input accent-primary"
                 />
-                Compra parcelada 💳
+                Compra parcelada
               </label>
 
               {f.parcelado && (
@@ -818,7 +822,7 @@ export default function FluxoClient() {
                 onChange={(e) => set('recorrente', e.target.checked)}
                 className="h-4 w-4 rounded border-input accent-primary"
               />
-              Gasto fixo / recorrente 📌
+              Gasto fixo / recorrente
             </label>
           )}
 
@@ -836,7 +840,7 @@ export default function FluxoClient() {
               {f.repete && (
                 <div className="space-y-1.5">
                   <Label htmlFor="recorrente_ate" className="text-xs text-muted-foreground">
-                    Última vez em (opcional — vazio = sem fim)
+                    Última vez em (opcional, vazio = sem fim)
                   </Label>
                   <Input
                     id="recorrente_ate"
@@ -867,7 +871,7 @@ export default function FluxoClient() {
       </Modal>
 
       {/* Modal de importar fatura (OFX/CSV) */}
-      <Modal open={impAberto} onClose={() => setImpAberto(false)} title="Importar fatura 📄">
+      <Modal open={impAberto} onClose={() => setImpAberto(false)} title="Importar fatura">
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Arquivo (OFX ou CSV)</Label>

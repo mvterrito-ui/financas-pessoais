@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Landmark, Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent } from 'lucide-react'
+import {
+  Landmark,
+  Plus,
+  Trash2,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  Percent,
+} from 'lucide-react'
 import { invalidarSincronizacao } from '@/lib/sincronizar'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
@@ -154,7 +162,7 @@ export default function RendaFixaClient() {
 
       {itens.length === 0 ? (
         <EmptyState
-          emoji="🏦"
+          icon={Landmark}
           titulo="Nenhuma aplicação ainda"
           descricao="Adicione seus títulos de renda fixa (Tesouro, CDB, LCI/LCA…)."
           acao={

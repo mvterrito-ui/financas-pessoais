@@ -1,23 +1,24 @@
-# 💰 Finanças Pessoais
+# Finanças Pessoais
 
-App **multi-tenant** de finanças pessoais: fluxo de caixa, orçamento, patrimônio e investimentos num só lugar — cada usuário com seus dados totalmente isolados.
+App de finanças pessoais com fluxo de caixa, orçamento, patrimônio e investimentos. É multi-tenant: cada usuário só enxerga os próprios dados.
 
-Construído como projeto de estudo de **backend** (por alguém que vem do **QA/front-end**), com foco em arquitetura em camadas, validação ponta a ponta e segurança por **Row Level Security**.
+Comecei como projeto de estudo de backend (venho de QA e front-end). O foco é arquitetura em camadas, validação de ponta a ponta e segurança com Row Level Security no Postgres.
 
-> 🔐 **Acesso fechado:** a instância publicada **não permite criar novos usuários** (signup desligado no Supabase) — é de uso pessoal. Para explorar o app localmente, **num projeto Supabase de teste** (nunca no de produção), use `npm run seed:demo -- --sim`, que cria um usuário de demonstração com dados fictícios e mostra o login e uma senha aleatória no terminal — via API admin, funciona mesmo com o cadastro bloqueado.
+**Acesso fechado.** A instância publicada não aceita cadastro (signup desligado no Supabase); o uso é pessoal. Para explorar localmente, use um projeto Supabase de teste, nunca o de produção, e rode `npm run seed:demo -- --sim`. O script cria um usuário de demonstração com dados fictícios e mostra o login e uma senha aleatória no terminal.
 
-## ✨ Funcionalidades
+## Funcionalidades
 
-- **💸 Fluxo de Caixa** — entradas/saídas, filtro por mês, **compras parceladas** (1 lançamento por mês, agrupados) e import de fatura **OFX/CSV** sem duplicar.
-- **🎯 Orçamento** — divide a renda do mês em baldes (estilo 50/10/10), com soma de percentuais.
-- **📈 Patrimônio** — foto mensal por lugar, **multi-moeda** (BRL/USD/EUR) com cotação ao vivo, e gráfico de evolução.
-- **🔮 Projeção** — projeta o patrimônio futuro com juros compostos: rendimento **% ao mês** + aporte fixo, filtrando por tipo de investimento, horizonte de 1 a 20 anos.
-- **🏢 FIIs** — carteira com cotação ao vivo (Yahoo Finance, sem token).
-- **🏦 Renda Fixa** e **🪙 Cripto** — posições, rendimento e detalhamento.
+- **Fluxo de caixa:** entradas e saídas por mês, compras parceladas, gastos fixos que se repetem todo mês (com data de término) e importação de fatura OFX/CSV sem duplicar lançamentos.
+- **Orçamento:** divide a renda do mês em baldes por percentual.
+- **Controle anual:** grade de 12 meses com grupos, categorias e itens definidos pelo usuário. Itens podem ser ligados a categorias do fluxo de caixa e somam os lançamentos automaticamente.
+- **Patrimônio:** foto mensal por lugar, em BRL, USD ou EUR com cotação ao vivo. Ações, FIIs, renda fixa, cripto e consórcios entram sozinhos; o resto é manual.
+- **Projeção:** juros compostos a partir do crescimento histórico (comparando só os mesmos itens mês a mês), com aporte mensal e horizonte de 1 a 20 anos.
+- **Investimentos:** ações e FIIs com cotação ao vivo (Yahoo Finance), renda fixa, cripto por corretora e consórcios com reajuste de parcela.
+- **Interface:** tema claro, escuro ou do sistema, e layout adaptado para celular.
 
-## 📸 Telas
+## Telas
 
-> Capturas com dados **fictícios** (usuário de demonstração).
+Capturas com dados fictícios (usuário de demonstração).
 
 | Visão geral | Fluxo de Caixa |
 |---|---|
@@ -31,33 +32,34 @@ Construído como projeto de estudo de **backend** (por alguém que vem do **QA/f
 |---|---|
 | ![Patrimônio](docs/screenshots/patrimonio.png) | ![Orçamento](docs/screenshots/orcamento.png) |
 
-## 🛠️ Stack
+## Stack
 
-- **Next.js 16** (App Router) + **React 19** + **TypeScript** — monolito
-- **Supabase** — Postgres + Auth (cookies via `@supabase/ssr`) + **RLS**
-- **Tailwind 4** (design tokens via `@theme`) + componentes estilo shadcn
-- **Zod** (validação) · **Vitest** (testes das funções puras)
+- Next.js 16 (App Router), React 19 e TypeScript, em um monolito
+- Supabase: Postgres, Auth (cookies via `@supabase/ssr`) e RLS
+- Tailwind 4 (tokens via `@theme`) com componentes no estilo shadcn
+- Zod para validação e Vitest para os testes das funções puras
 
-## 🧱 Arquitetura
+## Arquitetura
 
-Cada módulo segue a mesma trilha, do banco ao front:
+Todo módulo segue o mesmo caminho, do banco à tela:
 
 ```
-migration (SQL + RLS)  →  schema (Zod)  →  repo (única camada de DB)
+migration (SQL + RLS)  →  schema (Zod)  →  repo (única camada que fala com o banco)
    →  service (regra de negócio, carimba o tenant)  →  rota (/api)  →  client (React)
 ```
 
-- **Cálculos puros** ficam em arquivos `*.calc.ts` — rodam **igual no back e no front** (ex.: preview de parcelas e projeção no navegador, sem ida ao servidor) e são **testados** com Vitest.
-- O **repo nunca filtra por tenant** — quem isola é o **RLS** no banco.
+- Os cálculos ficam em arquivos `*.calc.ts`, sem acesso a banco ou rede. Rodam igual no servidor e no navegador (prévia de parcelas, projeção) e têm testes.
+- O repo não filtra por tenant. Quem isola os dados é o RLS no banco.
 
-## 🔒 Multi-tenancy & segurança
+## Multi-tenancy e segurança
 
-- Cada usuário = 1 **tenant**, provisionado automaticamente quando a conta é criada (gatilho `handle_new_user`).
-- **Cadastro fechado:** novos signups estão **desativados** na instância publicada — contas são criadas só pelo dono (painel/admin). O suporte a multi-tenant é da arquitetura; o uso é pessoal.
-- Toda tabela tem **RLS ligado** + políticas `tenant_id = current_tenant_id()`. Usuário só enxerga o que é seu; deslogado não acessa nada.
-- A chave `service_role` vive **só no servidor** (nunca no bundle do cliente, nunca no git).
+- Cada usuário é um tenant, criado automaticamente junto com a conta (gatilho `handle_new_user`). A conta nova começa vazia.
+- O cadastro está desligado na instância publicada. As contas são criadas pelo administrador.
+- Toda tabela tem RLS com políticas `tenant_id = current_tenant_id()`. Sem login, nada é acessível.
+- As páginas são estáticas; os dados só saem pelas rotas `/api`, que exigem sessão. A sessão expira 12 horas após o login.
+- A chave `service_role` fica só no servidor (cron de fechamento mensal), nunca no navegador nem no git.
 
-## 🚀 Rodando localmente
+## Rodando localmente
 
 ```bash
 # 1. dependências
@@ -79,16 +81,16 @@ npm run seed:demo -- --sim   # só em projeto Supabase de TESTE
 npm run dev
 ```
 
-### Scripts úteis
+### Scripts
 
-| Comando | O quê |
+| Comando | Descrição |
 |---|---|
-| `npm run dev` | sobe em modo desenvolvimento |
-| `npm test` | roda os testes (Vitest) |
+| `npm run dev` | modo desenvolvimento |
+| `npm test` | testes (Vitest) |
 | `npm run build` | build de produção |
-| `npm run seed:demo -- --sim` | cria o usuário demo (login + dados fictícios) via admin — **só em projeto de teste** |
+| `npm run seed:demo -- --sim` | cria o usuário de demonstração (só em projeto de teste) |
 | `npm run backup` | dump do banco (`pg_dump`) |
 
 ---
 
-Feito com 💚 como estudo de backend. Não é recomendação de investimento.
+Projeto de estudo. Não é recomendação de investimento.

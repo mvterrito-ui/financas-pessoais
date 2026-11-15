@@ -16,6 +16,7 @@ import {
   Bitcoin,
   Landmark,
   PieChart,
+  ArrowLeftRight,
 } from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
@@ -171,7 +172,7 @@ export default function DashboardClient() {
   return (
     <PageLayout
       title="Visão geral"
-      description="Seu panorama financeiro num lugar só"
+      description="Resumo do mês e dos investimentos"
       icon={LayoutDashboard}
     >
       {erro && (
@@ -229,7 +230,8 @@ export default function DashboardClient() {
           <MonthPicker value={mes} onChange={setMes} />
         </div>
         <span className="ml-auto self-center text-xs text-muted-foreground">
-          💱 USD {formatBRL(rates.USD)} · EUR {formatBRL(rates.EUR)}
+          <ArrowLeftRight className="mr-1 inline h-3 w-3" />
+          USD {formatBRL(rates.USD)} · EUR {formatBRL(rates.EUR)}
         </span>
       </div>
 
@@ -310,19 +312,20 @@ export default function DashboardClient() {
       {/* Atalhos */}
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-6">
         {[
-          { to: '/fluxo', label: 'Fluxo', emoji: '💸' },
-          { to: '/orcamento', label: 'Orçamento', emoji: '🎯' },
-          { to: '/patrimonio', label: 'Patrimônio', emoji: '📈' },
-          { to: '/acoes', label: 'Ações', emoji: '📊' },
-          { to: '/fii', label: 'FIIs', emoji: '🏢' },
-          { to: '/cripto', label: 'Cripto', emoji: '🪙' },
-        ].map((a) => (
+          { to: '/fluxo', label: 'Fluxo', icon: Wallet },
+          { to: '/orcamento', label: 'Orçamento', icon: PieChart },
+          { to: '/patrimonio', label: 'Patrimônio', icon: TrendingUp },
+          { to: '/acoes', label: 'Ações', icon: CandlestickChart },
+          { to: '/fii', label: 'FIIs', icon: Building2 },
+          { to: '/cripto', label: 'Cripto', icon: Bitcoin },
+        ].map(({ to, label, icon: Icon }) => (
           <Link
-            key={a.to}
-            href={a.to}
-            className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium transition-colors hover:bg-accent"
+            key={to}
+            href={to}
+            className="group flex items-center gap-2.5 rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium transition-colors hover:border-primary/30 hover:bg-accent"
           >
-            <span className="text-lg">{a.emoji}</span> {a.label}
+            <Icon className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
+            {label}
           </Link>
         ))}
       </div>

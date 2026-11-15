@@ -32,7 +32,7 @@ if (!user) throw new Error('Passe o e-mail (há vários usuários ou não encont
 const { data: profile } = await supabase
   .from('profile').select('tenant_id').eq('id', user.id).single()
 const tenant_id = profile.tenant_id
-console.log(`👤 Importando patrimônio para: ${user.email}`)
+console.log(`Importando patrimônio para: ${user.email}`)
 
 // mapa nome do lugar -> id
 const { data: places } = await supabase
@@ -75,4 +75,4 @@ const { error } = await supabase
   .upsert(fotos, { onConflict: 'place_id,mes' })
 if (error) throw error
 
-console.log(`✅ ${fotos.length} fotos de patrimônio importadas (upsert).`)
+console.log(`${fotos.length} fotos de patrimônio importadas (upsert).`)

@@ -269,7 +269,7 @@ export default function AnualClient() {
     const meses = mesesDoAno(ano)
     const faltam = preencherAdiante(serieDoItem(item.id, meses, valores))
     if (faltam.length === 0) {
-      setErro(`"${item.name}": preencha um mês primeiro — os vazios seguintes recebem esse valor.`)
+      setErro(`"${item.name}": preencha um mês primeiro. Os meses vazios seguintes recebem esse valor.`)
       return
     }
     gravarValores(
@@ -488,7 +488,7 @@ export default function AnualClient() {
 
       {carregado && grupos.length === 0 ? (
         <EmptyState
-          emoji="📅"
+          icon={CalendarRange}
           titulo="Monte o seu controle anual"
           descricao="Crie os grupos do seu jeito: um de receitas, um de investimentos e quantos de despesas quiser (fixas, variáveis, extras…). Depois adicione os itens e preencha os meses."
           acao={
@@ -531,7 +531,7 @@ export default function AnualClient() {
                 <strong>{formatBRL(foraDoAnual.valor)}</strong> em {foraDoAnual.qtd} lançamento
                 {foraDoAnual.qtd > 1 ? 's' : ''} do Fluxo em {ano} ainda não {foraDoAnual.qtd > 1 ? 'entram' : 'entra'} no
                 Controle Anual (categoria não ligada ou sem categoria). Use <strong>Puxar do Fluxo</strong> no grupo
-                ou o 🔗 no item.
+                ou <strong>Ligar ao Fluxo</strong> no item.
               </span>
             </div>
           )}

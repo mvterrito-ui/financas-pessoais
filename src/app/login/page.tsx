@@ -19,6 +19,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { Marca } from '@/components/layout/Marca'
 
 // Mensagens do Supabase Auth em português (o resto cai numa genérica).
 function traduzirErro(msg: string): string {
@@ -48,7 +49,7 @@ const DESTAQUES = [
   { icon: CalendarRange, titulo: 'Controle anual', texto: 'O ano inteiro mês a mês, com saldo e gráficos.' },
 ]
 
-// Prévia decorativa do app (sem dados reais) — só ilustração.
+// Prévia decorativa do app (sem dados reais), só ilustração.
 function PreviaApp() {
   const barras = [38, 46, 42, 55, 51, 63, 60, 72, 69, 80, 78, 92]
   return (
@@ -132,20 +133,17 @@ export default function LoginPage() {
         />
 
         <div className="relative flex items-center gap-2.5">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-xl ring-1 ring-white/15">
-            💰
-          </span>
+          <Marca tamanho={40} className="rounded-xl ring-1 ring-white/15" />
           <span className="text-lg font-semibold tracking-tight text-white">Finanças</span>
         </div>
 
         <div className="relative space-y-10">
           <div className="space-y-4">
             <h1 className="max-w-md text-4xl font-semibold leading-[1.1] tracking-tight text-white xl:text-5xl">
-              Seu dinheiro, mês a mês, num lugar só.
+              Suas finanças, mês a mês.
             </h1>
             <p className="max-w-md text-base leading-relaxed text-sidebar-foreground/75">
-              Gastos, investimentos e patrimônio organizados — pra decidir com clareza, não no
-              escuro.
+              Gastos, investimentos e patrimônio no mesmo lugar.
             </p>
           </div>
 
@@ -170,7 +168,7 @@ export default function LoginPage() {
 
         <p className="relative flex items-center gap-2 text-xs text-sidebar-foreground/50">
           <ShieldCheck className="h-3.5 w-3.5" />
-          Acesso restrito · seus dados ficam isolados da conta de qualquer outra pessoa
+          Acesso restrito
         </p>
       </section>
 
@@ -184,12 +182,10 @@ export default function LoginPage() {
             style={{ background: 'radial-gradient(70% 90% at 20% 0%, rgba(52,211,153,0.22), transparent 70%)' }}
           />
           <div className="relative flex items-center gap-2.5">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-xl ring-1 ring-white/15">
-              💰
-            </span>
+            <Marca tamanho={40} className="rounded-xl ring-1 ring-white/15" />
             <div>
               <p className="text-lg font-semibold leading-tight tracking-tight text-white">Finanças</p>
-              <p className="text-xs text-sidebar-foreground/70">Seu dinheiro, mês a mês, num lugar só.</p>
+              <p className="text-xs text-sidebar-foreground/70">Suas finanças, mês a mês.</p>
             </div>
           </div>
         </div>
@@ -197,8 +193,8 @@ export default function LoginPage() {
         <div className="-mt-5 flex flex-1 items-start justify-center px-4 pb-10 sm:px-6 lg:mt-0 lg:items-center">
           <div className="animate-fade-in w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl shadow-slate-900/5 ring-1 ring-border sm:p-8 lg:bg-transparent lg:p-0 lg:shadow-none lg:ring-0">
             <div className="mb-7">
-              <h2 className="text-2xl font-semibold tracking-tight">Bem-vindo de volta</h2>
-              <p className="mt-1.5 text-sm text-muted-foreground">Entre com seu e-mail e senha.</p>
+              <h2 className="text-2xl font-semibold tracking-tight">Entrar</h2>
+              <p className="mt-1.5 text-sm text-muted-foreground">Use seu e-mail e senha.</p>
             </div>
 
             <Suspense fallback={null}>
@@ -284,7 +280,7 @@ export default function LoginPage() {
 
             <p className="mt-8 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5" />
-              Acesso fechado — contas são criadas pelo administrador.
+              Acesso restrito. As contas são criadas pelo administrador.
             </p>
           </div>
         </div>

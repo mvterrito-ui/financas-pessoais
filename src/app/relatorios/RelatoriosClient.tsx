@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { BarChart3, ArrowUpRight, ArrowDownRight, Scale } from 'lucide-react'
+import {
+  BarChart3,
+  ArrowUpRight,
+  ArrowDownRight,
+  Scale,
+  CalendarDays,
+} from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -123,7 +129,7 @@ export default function RelatoriosClient() {
   return (
     <PageLayout
       title="Relatórios"
-      description="Pra onde vai e de onde vem o seu dinheiro, por categoria"
+      description="Gastos e entradas por categoria"
       icon={BarChart3}
     >
       {/* Período */}
@@ -143,7 +149,8 @@ export default function RelatoriosClient() {
           </div>
         </div>
         <span className="ml-auto self-center text-sm text-muted-foreground">
-          📅 {todoPeriodo ? 'Todo o período' : rotuloMes(mes)} · {txs.length} lançamento
+          <CalendarDays className="mr-1 inline h-3.5 w-3.5" />
+          {todoPeriodo ? 'Todo o período' : rotuloMes(mes)} · {txs.length} lançamento
           {txs.length === 1 ? '' : 's'}
         </span>
       </div>
@@ -169,14 +176,14 @@ export default function RelatoriosClient() {
 
       {txs.length === 0 ? (
         <EmptyState
-          emoji="📊"
+          icon={BarChart3}
           titulo="Nada pra relatar nesse período"
           descricao="Lance entradas e saídas no Fluxo de Caixa pra ver a quebra por categoria aqui."
         />
       ) : (
         <div className="grid gap-5 lg:grid-cols-2">
-          <Quebra titulo="🔻 Gastos por categoria" itens={gastos} cor="destructive" />
-          <Quebra titulo="🔺 Entradas por categoria" itens={entradas} cor="emerald" />
+          <Quebra titulo="Gastos por categoria" itens={gastos} cor="destructive" />
+          <Quebra titulo="Entradas por categoria" itens={entradas} cor="emerald" />
         </div>
       )}
     </PageLayout>

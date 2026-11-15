@@ -5,13 +5,13 @@ export type Moeda = 'BRL' | 'USD' | 'EUR'
 // Lugares AUTOMÁTICOS: o valor vem do módulo de investimento (não se digita).
 export type Origem = 'acao' | 'fii' | 'renda_fixa' | 'cripto' | 'consorcio'
 
-export const ORIGENS: { origem: Origem; nome: string; moeda: Moeda; href: string; emoji: string }[] = [
-  { origem: 'acao', nome: 'Ações', moeda: 'BRL', href: '/acoes', emoji: '📊' },
-  { origem: 'fii', nome: 'FIIs', moeda: 'BRL', href: '/fii', emoji: '🏢' },
-  { origem: 'renda_fixa', nome: 'Renda Fixa', moeda: 'BRL', href: '/renda-fixa', emoji: '🏦' },
-  { origem: 'cripto', nome: 'Cripto', moeda: 'USD', href: '/cripto', emoji: '🪙' },
+export const ORIGENS: { origem: Origem; nome: string; moeda: Moeda; href: string }[] = [
+  { origem: 'acao', nome: 'Ações', moeda: 'BRL', href: '/acoes' },
+  { origem: 'fii', nome: 'FIIs', moeda: 'BRL', href: '/fii' },
+  { origem: 'renda_fixa', nome: 'Renda Fixa', moeda: 'BRL', href: '/renda-fixa' },
+  { origem: 'cripto', nome: 'Cripto', moeda: 'USD', href: '/cripto' },
   // Consórcio: o que já foi PAGO das cotas em andamento/contempladas.
-  { origem: 'consorcio', nome: 'Consórcios', moeda: 'BRL', href: '/consorcios', emoji: '🤝' },
+  { origem: 'consorcio', nome: 'Consórcios', moeda: 'BRL', href: '/consorcios' },
 ]
 
 export type WealthPlace = {

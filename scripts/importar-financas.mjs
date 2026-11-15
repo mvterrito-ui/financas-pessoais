@@ -49,7 +49,7 @@ const { data: profile, error: errProf } = await supabase
   .single()
 if (errProf || !profile?.tenant_id) throw new Error('Tenant do usuário não encontrado.')
 const tenant_id = profile.tenant_id
-console.log(`👤 Importando para: ${user.email}  (tenant ${tenant_id})`)
+console.log(`Importando para: ${user.email}  (tenant ${tenant_id})`)
 
 // ---- 3) Lê a planilha -------------------------------------------------
 const buf = readFileSync(new URL('../data/FINANCAS.xlsx', import.meta.url))
@@ -159,4 +159,4 @@ if (errIns) throw errIns
 
 const entradas = lancamentos.filter((l) => l.tipo === 'entrada').length
 const saidas = lancamentos.filter((l) => l.tipo === 'saida').length
-console.log(`✅ Importados ${lancamentos.length} lançamentos (${entradas} entradas, ${saidas} saídas).`)
+console.log(`Importados ${lancamentos.length} lançamentos (${entradas} entradas, ${saidas} saídas).`)

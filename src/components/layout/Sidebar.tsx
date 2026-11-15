@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { expiraEmMs } from '@/lib/sessao'
 import { TemaToggle } from './TemaToggle'
+import { Marca } from './Marca'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,7 +34,6 @@ interface Item {
   to: string
   label: string
   icon: LucideIcon
-  emoji: string
   breve?: boolean
 }
 interface Secao {
@@ -44,38 +44,38 @@ interface Secao {
 const secoes: Secao[] = [
   {
     titulo: 'Geral',
-    itens: [{ to: '/', label: 'Visão geral', icon: LayoutDashboard, emoji: '🏠' }],
+    itens: [{ to: '/', label: 'Visão geral', icon: LayoutDashboard }],
   },
   {
     titulo: 'Caixa',
     itens: [
-      { to: '/fluxo', label: 'Fluxo de Caixa', icon: Wallet, emoji: '💸' },
-      { to: '/orcamento', label: 'Orçamento', icon: PieChart, emoji: '🎯' },
-      { to: '/anual', label: 'Controle Anual', icon: CalendarRange, emoji: '📅' },
-      { to: '/relatorios', label: 'Relatórios', icon: BarChart3, emoji: '📊' },
+      { to: '/fluxo', label: 'Fluxo de Caixa', icon: Wallet },
+      { to: '/orcamento', label: 'Orçamento', icon: PieChart },
+      { to: '/anual', label: 'Controle Anual', icon: CalendarRange },
+      { to: '/relatorios', label: 'Relatórios', icon: BarChart3 },
     ],
   },
   {
     titulo: 'Patrimônio',
     itens: [
-      { to: '/patrimonio', label: 'Patrimônio', icon: TrendingUp, emoji: '📈' },
-      { to: '/projecao', label: 'Projeção', icon: Sparkles, emoji: '🔮' },
+      { to: '/patrimonio', label: 'Patrimônio', icon: TrendingUp },
+      { to: '/projecao', label: 'Projeção', icon: Sparkles },
     ],
   },
   {
     titulo: 'Investimentos',
     itens: [
-      { to: '/acoes', label: 'Ações', icon: CandlestickChart, emoji: '📊' },
-      { to: '/fii', label: 'FIIs', icon: Building2, emoji: '🏢' },
-      { to: '/renda-fixa', label: 'Renda Fixa', icon: Landmark, emoji: '🏦' },
-      { to: '/cripto', label: 'Cripto', icon: Bitcoin, emoji: '🪙' },
-      { to: '/consorcios', label: 'Consórcios', icon: Handshake, emoji: '🤝' },
+      { to: '/acoes', label: 'Ações', icon: CandlestickChart },
+      { to: '/fii', label: 'FIIs', icon: Building2 },
+      { to: '/renda-fixa', label: 'Renda Fixa', icon: Landmark },
+      { to: '/cripto', label: 'Cripto', icon: Bitcoin },
+      { to: '/consorcios', label: 'Consórcios', icon: Handshake },
     ],
   },
 ]
 
 function iniciais(nome?: string | null): string {
-  if (!nome) return '🙂'
+  if (!nome) return '?'
   const p = nome.trim().split(/\s+/)
   const i = (p[0]?.[0] ?? '') + (p.length > 1 ? p[p.length - 1][0] : (p[0]?.[1] ?? ''))
   return i.toUpperCase()
@@ -162,9 +162,7 @@ export function Sidebar({ aberto = false, onFechar }: { aberto?: boolean; onFech
 
         {/* Marca */}
         <div className="relative flex items-center gap-3 px-5 pb-6 pt-6">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-xl ring-1 ring-white/15">
-            💰
-          </span>
+          <Marca tamanho={40} className="rounded-xl ring-1 ring-white/15" />
           <div className="leading-tight">
             <div className="text-base font-semibold tracking-tight text-white">Finanças</div>
             <div className="text-[11px] text-sidebar-foreground/55">Seu dinheiro, mês a mês</div>

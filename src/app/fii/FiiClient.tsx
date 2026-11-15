@@ -11,7 +11,6 @@ export default function FiiClient() {
         titulo: 'FIIs',
         descricao: 'Seus fundos imobiliários (cotação ao vivo)',
         icon: Building2,
-        emoji: '🏢',
         nome: 'FII',
         novoLabel: 'Novo FII',
         vazioTitulo: 'Nenhum FII ainda',

@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Finanças 💰",
-  description: "Suas finanças pessoais — fluxo de caixa, patrimônio e investimentos",
+  title: "Finanças",
+  description: "Fluxo de caixa, patrimônio e investimentos",
 };
 
 export default function RootLayout({
@@ -34,7 +34,7 @@ export default function RootLayout({
     >
       <head>
         {/* Aplica o tema salvo (ou o do sistema) ANTES da 1ª pintura: sem
-            piscar branco no modo escuro. Ver docs: preventing-flash-before-hydration. */}
+            piscar branco no modo escuro. */}
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
       </head>
       <body className="min-h-full flex flex-col">
