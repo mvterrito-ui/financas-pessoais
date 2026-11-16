@@ -1,6 +1,7 @@
-import { redirect } from 'next/navigation'
+import OrcamentoClient from './OrcamentoClient'
 
-// O Orçamento (baldes por %) virou "metas por grupo" no Controle Anual.
+// Página "casca" (estática): quem não está logado é mandado pro /login pelo
+// proxy.ts; os DADOS são protegidos nas rotas /api (withAuth + RLS).
 export default function OrcamentoPage() {
-  redirect('/anual')
+  return <OrcamentoClient />
 }

@@ -12,6 +12,7 @@ Comecei como projeto de estudo de backend (venho de QA e front-end). O foco é a
 - **Lançamentos:** entradas e saídas do mês, compras parceladas e importação de fatura OFX/CSV sem duplicar.
 - **Recorrências:** receitas e despesas fixas (salário, aluguel, assinaturas) que podem ser pausadas, reajustadas a partir de um mês e finalizadas. Cada mês vira uma previsão que você confirma (pago ou recebido), podendo ajustar o valor.
 - **Controle anual:** os 12 meses por categoria, comparando planejado (recorrências ou valor digitado) com realizado (lançamentos). Cada grupo pode ter meta em % da receita.
+- **Orçamento:** fatias livres (nome e % das entradas do mês). Cada conta se liga a uma fatia, e as saídas dela mostram quanto já foi usado e quanto resta.
 - **Patrimônio:** foto mensal por lugar, em BRL, USD ou EUR com cotação ao vivo. Ações, FIIs, renda fixa, cripto e consórcios entram sozinhos; o resto é manual.
 - **Projeção:** juros compostos a partir do crescimento histórico (comparando só os mesmos itens mês a mês), com aporte mensal e horizonte de 1 a 20 anos.
 - **Investimentos:** ações e FIIs com cotação ao vivo (Yahoo Finance), renda fixa, cripto por corretora e consórcios com reajuste de parcela.

@@ -19,6 +19,7 @@ import {
   Pencil,
   type LucideIcon,
   Repeat,
+  PieChart,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
@@ -52,6 +53,7 @@ const secoes: Secao[] = [
       { to: '/fluxo', label: 'Lançamentos', icon: Wallet },
       { to: '/recorrencias', label: 'Recorrências', icon: Repeat },
       { to: '/anual', label: 'Controle Anual', icon: CalendarRange },
+      { to: '/orcamento', label: 'Orçamento', icon: PieChart },
       { to: '/relatorios', label: 'Relatórios', icon: BarChart3 },
     ],
   },

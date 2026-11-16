@@ -45,6 +45,8 @@ export type Account = {
   name: string
   tipo: 'conta' | 'cartao' | 'dinheiro' | 'investimento'
   moeda: 'BRL' | 'USD' | 'EUR' | 'BTC'
+  /** Fatia do Orçamento que essa conta usa. */
+  budget_id?: string | null
 }
 
 
