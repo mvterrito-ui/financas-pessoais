@@ -17,7 +17,7 @@ const r = (o: Partial<Recorrencia> = {}): Recorrencia => ({
   valor: 2000,
   moeda: 'BRL',
   item_id: 'aluguel',
-  account_id: null,
+  budget_id: null,
   dia: 31,
   inicio: '2026-01-01',
   fim: null,

@@ -11,7 +11,7 @@ export type Transaction = {
   moeda?: Moeda // moeda do lançamento (default BRL)
   data: string
   descricao: string | null
-  account_id: string | null
+  budget_id: string | null // fatia do Orçamento
   parcela_grupo: string | null // une as parcelas da mesma compra (null = à vista)
   parcela_num: number | null // qual parcela (1, 2, 3...)
   parcela_total: number | null // total de parcelas (ex: 12)
@@ -38,15 +38,6 @@ export function valorEmBRL(
   if (moeda === 'USD') return v * rates.USD
   if (moeda === 'EUR') return v * rates.EUR
   return v
-}
-
-export type Account = {
-  id: string
-  name: string
-  tipo: 'conta' | 'cartao' | 'dinheiro' | 'investimento'
-  moeda: 'BRL' | 'USD' | 'EUR' | 'BTC'
-  /** Fatia do Orçamento que essa conta usa. */
-  budget_id?: string | null
 }
 
 

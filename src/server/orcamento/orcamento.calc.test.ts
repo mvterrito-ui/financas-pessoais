@@ -23,38 +23,34 @@ describe('orcamento.calc', () => {
 })
 
 describe('usoPorFatia', () => {
-  const contas = [
-    { id: 'nubank', budget_id: '1' },
-    { id: 'inter', budget_id: '1' },
-    { id: 'xp', budget_id: null },
-  ]
-  const dobro = (v: number | string, m?: string | null) => Number(v) * (m === 'USD' ? 5 : 1)
+  const fatias = [{ id: '1' }, { id: '2' }]
+  const emReal = (v: number | string, m?: string | null) => Number(v) * (m === 'USD' ? 5 : 1)
 
-  it('soma as saídas das contas de cada fatia (convertendo moeda)', () => {
+  it('soma as saídas de cada fatia (convertendo moeda)', () => {
     const { porFatia, semFatia } = usoPorFatia(
       [
-        { valor: 100, account_id: 'nubank' },
-        { valor: '50', account_id: 'inter' },
-        { valor: 10, moeda: 'USD', account_id: 'inter' },
+        { valor: 100, budget_id: '1' },
+        { valor: '50', budget_id: '1' },
+        { valor: 10, moeda: 'USD', budget_id: '2' },
       ],
-      contas,
-      dobro,
+      fatias,
+      emReal,
     )
-    expect(porFatia.get('1')).toBe(200)
+    expect(porFatia.get('1')).toBe(150)
+    expect(porFatia.get('2')).toBe(50)
     expect(semFatia).toBe(0)
   })
 
-  it('sem conta ou conta sem fatia vai pra semFatia', () => {
+  it('sem fatia ou fatia fora da lista vai pra semFatia', () => {
     const { porFatia, semFatia } = usoPorFatia(
       [
-        { valor: 30, account_id: 'xp' },
-        { valor: 20, account_id: null },
-        { valor: 5, account_id: 'apagada' },
+        { valor: 20, budget_id: null },
+        { valor: 5, budget_id: 'removida' },
       ],
-      contas,
-      dobro,
+      fatias,
+      emReal,
     )
     expect(porFatia.size).toBe(0)
-    expect(semFatia).toBe(55)
+    expect(semFatia).toBe(25)
   })
 })

@@ -34,7 +34,8 @@ import { MoedaToggle, simboloMoeda, type MoedaCodigo } from '@/components/ui/moe
 import { usePromptDialog } from '@/components/ui/prompt'
 import { useCotacao } from '@/lib/useRates'
 import { cn, formatData, rotuloMes } from '@/lib/utils'
-import { formatBRL, valorEmBRL, type Account } from '@/server/fluxo/fluxo.calc'
+import { formatBRL, valorEmBRL } from '@/server/fluxo/fluxo.calc'
+import type { BudgetBucket } from '@/server/orcamento/orcamento.calc'
 import { mesAtualBR } from '@/server/patrimonio/patrimonio.calc'
 import {
   pausaQueCobre,
@@ -73,7 +74,7 @@ type Form = {
   valor: string
   moeda: MoedaCodigo
   item_id: string
-  account_id: string
+  budget_id: string // fatia do Orçamento (só despesa)
   dia: string
   inicio: string // AAAA-MM
   fim: string // AAAA-MM ou ''
@@ -89,7 +90,7 @@ export default function RecorrenciasClient() {
   const [pausas, setPausas] = useState<Pausa[]>([])
   const [ajustes, setAjustes] = useState<AjusteValor[]>([])
   const [plano, setPlano] = useState<Plano>({ grupos: [], categorias: [], itens: [] })
-  const [contas, setContas] = useState<Account[]>([])
+  const [fatias, setFatias] = useState<BudgetBucket[]>([])
   const [carregado, setCarregado] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [filtro, setFiltro] = useState<Filtro>('ativas')
@@ -114,15 +115,15 @@ export default function RecorrenciasClient() {
     api(url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
 
   const buscar = useCallback(
-    () => Promise.all([api('/api/recorrencia'), api('/api/anual/estrutura'), api('/api/account')]),
+    () => Promise.all([api('/api/recorrencia'), api('/api/anual/estrutura'), api('/api/budget')]),
     [api],
   )
-  const aplicar = ([r, pl, c]: [{ recorrencias: Recorrencia[]; pausas: Pausa[]; ajustes: AjusteValor[] }, Plano, Account[]]) => {
+  const aplicar = ([r, pl, c]: [{ recorrencias: Recorrencia[]; pausas: Pausa[]; ajustes: AjusteValor[] }, Plano, BudgetBucket[]]) => {
     setRecs(r.recorrencias)
     setPausas(r.pausas)
     setAjustes(r.ajustes)
     setPlano(pl)
-    setContas(c)
+    setFatias(c)
   }
   const recarregar = useCallback(() => buscar().then(aplicar), [buscar])
 
@@ -179,7 +180,7 @@ export default function RecorrenciasClient() {
       valor: '',
       moeda: 'BRL',
       item_id: '',
-      account_id: '',
+      budget_id: '',
       dia: String(Number(new Date().getDate())),
       inicio: mesAtual.slice(0, 7),
       fim: '',
@@ -194,7 +195,7 @@ export default function RecorrenciasClient() {
       valor: String(r.valor),
       moeda: r.moeda,
       item_id: r.item_id ?? '',
-      account_id: r.account_id ?? '',
+      budget_id: r.budget_id ?? '',
       dia: String(r.dia),
       inicio: r.inicio.slice(0, 7),
       fim: r.fim ? r.fim.slice(0, 7) : '',
@@ -211,7 +212,7 @@ export default function RecorrenciasClient() {
       valor: Number(form.valor),
       moeda: form.moeda,
       item_id: form.item_id || null,
-      account_id: form.account_id || null,
+      budget_id: form.tipo === 'saida' ? form.budget_id || null : null,
       dia: Math.min(31, Math.max(1, Number(form.dia) || 1)),
       inicio: `${form.inicio}-01`,
       fim: form.fim ? `${form.fim}-01` : null,
@@ -342,7 +343,7 @@ export default function RecorrenciasClient() {
                     {[
                       nomeCategoria(plano, r.item_id) ?? 'sem categoria',
                       `todo dia ${r.dia}`,
-                      contas.find((c) => c.id === r.account_id)?.name,
+                      fatias.find((x) => x.id === r.budget_id)?.name,
                     ]
                       .filter(Boolean)
                       .join(' · ')}
@@ -517,7 +518,7 @@ export default function RecorrenciasClient() {
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setForm({ ...form, tipo: t, item_id: '' })}
+                  onClick={() => setForm({ ...form, tipo: t, item_id: '', budget_id: '' })}
                   className={cn(
                     'flex-1 rounded-lg py-2 text-sm font-medium transition-colors',
                     form.tipo === t
@@ -560,7 +561,7 @@ export default function RecorrenciasClient() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className={form.tipo === 'saida' ? 'grid grid-cols-2 gap-3' : 'grid gap-3'}>
               <div className="space-y-1.5">
                 <Label htmlFor="rec-cat">Categoria</Label>
                 <CategoriaSelect
@@ -571,21 +572,23 @@ export default function RecorrenciasClient() {
                   onChange={(v) => setForm({ ...form, item_id: v })}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="rec-conta">Conta</Label>
-                <Select
-                  id="rec-conta"
-                  value={form.account_id}
-                  onChange={(e) => setForm({ ...form, account_id: e.target.value })}
-                >
-                  <option value="">Sem conta</option>
-                  {contas.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+              {form.tipo === 'saida' && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="rec-fatia">Fatia do orçamento</Label>
+                  <Select
+                    id="rec-fatia"
+                    value={form.budget_id}
+                    onChange={(e) => setForm({ ...form, budget_id: e.target.value })}
+                  >
+                    <option value="">Sem fatia</option>
+                    {fatias.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-3 gap-3">

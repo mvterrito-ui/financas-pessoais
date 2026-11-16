@@ -17,9 +17,12 @@ export const budgetService = {
     return budgetRepo.update(ctx.supabase, id, values)
   },
 
-  // Remove a fatia; as contas dela ficam sem fatia.
+  // Remove a fatia; os lançamentos e recorrências dela ficam sem fatia.
   softDelete: async (ctx: AuthContext, id: string) => {
-    ok(await ctx.supabase.from('account').update({ budget_id: null }).eq('budget_id', id))
+    await Promise.all([
+      ctx.supabase.from('transaction').update({ budget_id: null }).eq('budget_id', id).then(ok),
+      ctx.supabase.from('recorrencia').update({ budget_id: null }).eq('budget_id', id).then(ok),
+    ])
     await budgetRepo.softDelete(ctx.supabase, id)
   },
 }

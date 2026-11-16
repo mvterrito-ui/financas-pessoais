@@ -42,12 +42,12 @@ import {
   saldo,
   totalEntradas,
   totalSaidas,
-  type Account,
   type Moeda,
   type Transaction,
 } from '@/server/fluxo/fluxo.calc'
 import { parseStatement, type ParsedItem } from '@/server/fluxo/statement'
 import { usePromptDialog } from '@/components/ui/prompt'
+import type { BudgetBucket } from '@/server/orcamento/orcamento.calc'
 import { CategoriaSelect, gruposDoTipo, nomeCategoria, type Plano } from '@/components/shared/CategoriaSelect'
 import { dataNoMes, type Previsto } from '@/server/recorrencia/recorrencia.calc'
 import { useCotacao } from '@/lib/useRates'
@@ -61,7 +61,7 @@ const novoVazio = () => ({
   data: hojeISO(),
   descricao: '',
   item_id: '', // categoria do plano de contas
-  account_id: '',
+  budget_id: '', // fatia do Orçamento (só saída)
   repetir: false, // ao criar: vira uma recorrência (previsão todo mês)
   parcelado: false,
   parcelas: '2', // nº de parcelas quando 'parcelado' está ligado
@@ -73,7 +73,7 @@ export default function FluxoClient() {
   const { rates, aoVivo } = useCotacao()
 
   const [txs, setTxs] = useState<Transaction[]>([])
-  const [accounts, setAccounts] = useState<Account[]>([])
+  const [fatias, setFatias] = useState<BudgetBucket[]>([])
   const [plano, setPlano] = useState<Plano>({ grupos: [], categorias: [], itens: [] })
   const [previstos, setPrevistos] = useState<Previsto[]>([])
   const [erro, setErro] = useState<string | null>(null)
@@ -89,7 +89,7 @@ export default function FluxoClient() {
   const [impAberto, setImpAberto] = useState(false)
   const [impItens, setImpItens] = useState<ParsedItem[]>([])
   const [impFormato, setImpFormato] = useState<string | null>(null)
-  const [impConta, setImpConta] = useState('')
+  const [impFatia, setImpFatia] = useState('')
   const [impResumo, setImpResumo] = useState<string | null>(null)
 
   function set<K extends keyof typeof f>(k: K, v: (typeof f)[K]) {
@@ -110,12 +110,12 @@ export default function FluxoClient() {
     [router],
   )
 
-  // Cadastros (contas + plano de contas). Recarregam ao abrir o formulário e ao
-  // voltar pra aba, pra pegar categorias criadas no Controle Anual nesse meio tempo.
+  // Cadastros (fatias + plano de contas). Recarregam ao abrir o formulário e ao
+  // voltar pra aba, pra pegar o que foi criado no Orçamento ou no Controle Anual.
   const carregarCadastros = useCallback(async () => {
     try {
-      const [a, pl] = await Promise.all([api('/api/account'), api('/api/anual/estrutura')])
-      setAccounts(a)
+      const [fs, pl] = await Promise.all([api('/api/budget'), api('/api/anual/estrutura')])
+      setFatias(fs)
       setPlano(pl)
     } catch (e) {
       setErro((e as Error).message)
@@ -174,7 +174,7 @@ export default function FluxoClient() {
       data: t.data.slice(0, 10),
       descricao: t.descricao ?? '',
       item_id: t.item_id ?? '',
-      account_id: t.account_id ?? '',
+      budget_id: t.budget_id ?? '',
       repetir: false,
       parcelado: false, // não dá pra "re-parcelar" ao editar
       parcelas: '2',
@@ -199,7 +199,7 @@ export default function FluxoClient() {
             data: f.data,
             descricao: f.descricao || null,
             item_id: f.item_id || null,
-            account_id: f.account_id || null,
+            budget_id: f.tipo === 'saida' ? f.budget_id || null : null,
           }),
         })
       } else {
@@ -216,7 +216,7 @@ export default function FluxoClient() {
             data: f.data,
             descricao: f.descricao || null,
             item_id: f.item_id || null,
-            account_id: f.account_id || null,
+            budget_id: f.tipo === 'saida' ? f.budget_id || null : null,
             parcelas: parcelar ? Number(f.parcelas) : undefined,
             repetir: !parcelar && f.repetir ? true : undefined,
           }),
@@ -307,25 +307,6 @@ export default function FluxoClient() {
     }
   }
 
-  async function criarConta() {
-    try {
-      const v = await ask({
-        title: 'Nova conta/cartão',
-        fields: [{ name: 'name', label: 'Nome', placeholder: 'Cartão XP, Pix…' }],
-      })
-      if (!v?.name) return
-      const nova = await api('/api/account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: v.name }),
-      })
-      await carregarCadastros()
-      set('account_id', nova.id)
-    } catch (e) {
-      setErro((e as Error).message)
-    }
-  }
-
   async function excluir(t: Transaction) {
     try {
       // Parcela faz parte de uma compra: excluir apaga a compra inteira.
@@ -353,7 +334,7 @@ export default function FluxoClient() {
   function abrirImport() {
     setImpItens([])
     setImpFormato(null)
-    setImpConta('')
+    setImpFatia('')
     setImpResumo(null)
     setErro(null)
     setImpAberto(true)
@@ -381,7 +362,7 @@ export default function FluxoClient() {
       const r = await api('/api/transaction/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account_id: impConta || null, itens: impItens }),
+        body: JSON.stringify({ budget_id: impFatia || null, itens: impItens }),
       })
       setImpResumo(`${r.importados} importados · ${r.ignorados} já existiam.`)
       setImpItens([])
@@ -392,8 +373,7 @@ export default function FluxoClient() {
   }
 
   const nomeDaCategoria = (id: string | null | undefined) => nomeCategoria(plano, id)
-  const nomeConta = (id: string | null) =>
-    accounts.find((a) => a.id === id)?.name ?? '—'
+  const nomeFatia = (id: string | null) => fatias.find((x) => x.id === id)?.name ?? '—'
 
   const aConfirmar = previstos.filter((p) => !p.confirmada && (!fTipo || p.recorrencia.tipo === fTipo))
 
@@ -593,7 +573,7 @@ export default function FluxoClient() {
               <tr>
                 <th className="px-4 py-3 font-medium">Data</th>
                 <th className="px-4 py-3 font-medium">Descrição</th>
-                <th className="px-4 py-3 font-medium">Conta</th>
+                <th className="px-4 py-3 font-medium">Fatia</th>
                 <th className="px-4 py-3 font-medium">Tipo</th>
                 <th className="px-4 py-3 text-right font-medium">Valor</th>
                 <th className="px-4 py-3"></th>
@@ -623,7 +603,7 @@ export default function FluxoClient() {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{nomeConta(t.account_id)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{t.tipo === 'saida' ? nomeFatia(t.budget_id) : '—'}</td>
                   <td className="px-4 py-3">
                     {t.tipo === 'entrada' ? (
                       <Badge variant="success">
@@ -705,6 +685,7 @@ export default function FluxoClient() {
               onClick={() => {
                 set('tipo', 'entrada')
                 set('item_id', '')
+                set('budget_id', '')
                 set('parcelado', false)
               }}
               className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${f.tipo === 'entrada' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'}`}
@@ -764,7 +745,7 @@ export default function FluxoClient() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className={f.tipo === 'saida' ? 'grid grid-cols-2 gap-3' : 'grid gap-3'}>
             <div className="space-y-1.5">
               <Label>Categoria</Label>
               <div className="flex gap-1">
@@ -774,25 +755,19 @@ export default function FluxoClient() {
                 </Button>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Conta</Label>
-              <div className="flex gap-1">
-                <Select
-                  value={f.account_id}
-                  onChange={(e) => set('account_id', e.target.value)}
-                >
-                  <option value="">(sem conta)</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
+            {f.tipo === 'saida' && (
+              <div className="space-y-1.5">
+                <Label htmlFor="fatia">Fatia do orçamento</Label>
+                <Select id="fatia" value={f.budget_id} onChange={(e) => set('budget_id', e.target.value)}>
+                  <option value="">Sem fatia</option>
+                  {fatias.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
                     </option>
                   ))}
                 </Select>
-                <Button type="button" variant="outline" size="icon" onClick={criarConta} aria-label="Nova conta" title="Nova conta">
-                  <Plus />
-                </Button>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Parcelamento — só pra saída nova (não dá pra re-parcelar ao editar) */}
@@ -887,12 +862,12 @@ export default function FluxoClient() {
           {impItens.length > 0 && (
             <>
               <div className="space-y-1.5">
-                <Label>Lançar na conta</Label>
-                <Select value={impConta} onChange={(e) => setImpConta(e.target.value)}>
-                  <option value="">(sem conta)</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
+                <Label>Fatia das saídas</Label>
+                <Select value={impFatia} onChange={(e) => setImpFatia(e.target.value)}>
+                  <option value="">Sem fatia</option>
+                  {fatias.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
                     </option>
                   ))}
                 </Select>

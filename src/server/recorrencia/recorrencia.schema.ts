@@ -10,7 +10,7 @@ const base = z.object({
   valor: z.number().positive('O valor deve ser maior que zero'),
   moeda: z.enum(['BRL', 'USD', 'EUR']).optional().default('BRL'),
   item_id: z.string().uuid().nullable().optional(),
-  account_id: z.string().uuid().nullable().optional(),
+  budget_id: z.string().uuid().nullable().optional(),
   dia: z.number().int().min(1).max(31),
   inicio: mes,
   fim: mes.nullable().optional(),
@@ -33,5 +33,5 @@ export const confirmarSchema = z.object({
   mes,
   valor: z.number().positive(),
   data,
-  account_id: z.string().uuid().nullable().optional(),
+  budget_id: z.string().uuid().nullable().optional(),
 })

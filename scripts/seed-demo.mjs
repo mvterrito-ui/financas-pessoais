@@ -80,13 +80,13 @@ console.log(`tenant ${tenant_id}`)
 // (ordem importa por causa das chaves estrangeiras)
 for (const t of [
   'transaction', 'recorrencia', 'annual_value', 'annual_item', 'annual_category', 'annual_group',
-  'crypto_item', 'crypto_summary', 'fii', 'fixed_income', 'wealth_snapshot', 'account', 'category',
+  'crypto_item', 'crypto_summary', 'fii', 'fixed_income', 'wealth_snapshot', 'budget_bucket', 'account', 'category',
 ]) {
   const { error } = await supabase.from(t).delete().eq('tenant_id', tenant_id)
   ok(error, `limpar ${t}`)
 }
 
-// ---- 3) plano de contas (com metas), contas e recorrências ------------
+// ---- 3) plano de contas (com metas), fatias do orçamento e recorrências ------------
 async function inserir(tabela, linhas, select = 'id, name') {
   const { data, error } = await supabase.from(tabela).insert(linhas).select(select)
   ok(error, `inserir ${tabela}`)
@@ -112,19 +112,19 @@ const itens = await inserir('annual_item', [
 ])
 const cat = (n) => itens.find((i) => i.name === n).id
 
-const contas = await inserir('account', [
-  { tenant_id, name: 'Nubank', tipo: 'cartao', moeda: 'BRL' },
-  { tenant_id, name: 'Itaú', tipo: 'conta', moeda: 'BRL' },
-  { tenant_id, name: 'Pix', tipo: 'conta', moeda: 'BRL' },
+const fatias = await inserir('budget_bucket', [
+  { tenant_id, name: 'Gastos fixos', percentual: 50, ordem: 1 },
+  { tenant_id, name: 'Dia a dia', percentual: 30, ordem: 2 },
+  { tenant_id, name: 'Investir', percentual: 20, ordem: 3 },
 ])
-const conta = (n) => contas.find((a) => a.name === n).id
+const fatia = (n) => (n ? fatias.find((f) => f.name === n).id : null)
 
 const recs = await inserir(
   'recorrencia',
   [
-    { tenant_id, tipo: 'entrada', descricao: 'Salário', valor: 6000, item_id: cat('Salário'), account_id: conta('Itaú'), dia: 5, inicio: `${ANO}-01-01` },
-    { tenant_id, tipo: 'saida', descricao: 'Aluguel', valor: 1800, item_id: cat('Aluguel'), account_id: conta('Itaú'), dia: 10, inicio: `${ANO}-01-01` },
-    { tenant_id, tipo: 'saida', descricao: 'Assinaturas (streaming)', valor: 119, item_id: cat('Assinaturas'), account_id: conta('Nubank'), dia: 1, inicio: `${ANO}-01-01` },
+    { tenant_id, tipo: 'entrada', descricao: 'Salário', valor: 6000, item_id: cat('Salário'), budget_id: null, dia: 5, inicio: `${ANO}-01-01` },
+    { tenant_id, tipo: 'saida', descricao: 'Aluguel', valor: 1800, item_id: cat('Aluguel'), budget_id: fatia('Gastos fixos'), dia: 10, inicio: `${ANO}-01-01` },
+    { tenant_id, tipo: 'saida', descricao: 'Assinaturas (streaming)', valor: 119, item_id: cat('Assinaturas'), budget_id: fatia('Gastos fixos'), dia: 1, inicio: `${ANO}-01-01` },
   ],
   'id, descricao',
 )
@@ -136,19 +136,19 @@ const mercadoMes = [950, 1020, 880, 1100, 970, 1030]
 const lazerMes = [400, 250, 500, 380, 420, 300]
 const dia = (m, d) => `${ANO}-${m}-${d}`
 // Lançamento que confirma a recorrência daquele mês.
-const confirmado = (m, d, tipo, valor, descricao, item, acc) => ({
-  tenant_id, tipo, valor, data: dia(m, d), descricao, item_id: cat(item), account_id: conta(acc),
+const confirmado = (m, d, tipo, valor, descricao, item, f) => ({
+  tenant_id, tipo, valor, data: dia(m, d), descricao, item_id: cat(item), budget_id: fatia(f),
   recorrencia_id: rec(descricao), competencia: `${ANO}-${m}-01`,
 })
 
 MESES.forEach((m, i) => {
-  txs.push(confirmado(m, '05', 'entrada', 6000, 'Salário', 'Salário', 'Itaú'))
-  txs.push(confirmado(m, '10', 'saida', 1800, 'Aluguel', 'Aluguel', 'Itaú'))
-  txs.push(confirmado(m, '01', 'saida', 119, 'Assinaturas (streaming)', 'Assinaturas', 'Nubank'))
-  txs.push({ tenant_id, tipo: 'saida', valor: mercadoMes[i], data: dia(m, '15'), descricao: 'Mercado do mês', item_id: cat('Mercado'), account_id: conta('Nubank') })
-  txs.push({ tenant_id, tipo: 'saida', valor: 320, data: dia(m, '08'), descricao: 'Transporte', item_id: cat('Transporte'), account_id: conta('Nubank') })
-  txs.push({ tenant_id, tipo: 'saida', valor: lazerMes[i], data: dia(m, '20'), descricao: 'Lazer', item_id: cat('Lazer'), account_id: conta('Nubank') })
-  txs.push({ tenant_id, tipo: 'saida', valor: 600, data: dia(m, '06'), descricao: 'Aporte no Tesouro', item_id: cat('Aporte mensal'), account_id: conta('Pix') })
+  txs.push(confirmado(m, '05', 'entrada', 6000, 'Salário', 'Salário', null))
+  txs.push(confirmado(m, '10', 'saida', 1800, 'Aluguel', 'Aluguel', 'Gastos fixos'))
+  txs.push(confirmado(m, '01', 'saida', 119, 'Assinaturas (streaming)', 'Assinaturas', 'Gastos fixos'))
+  txs.push({ tenant_id, tipo: 'saida', valor: mercadoMes[i], data: dia(m, '15'), descricao: 'Mercado do mês', item_id: cat('Mercado'), budget_id: fatia('Dia a dia') })
+  txs.push({ tenant_id, tipo: 'saida', valor: 320, data: dia(m, '08'), descricao: 'Transporte', item_id: cat('Transporte'), budget_id: fatia('Dia a dia') })
+  txs.push({ tenant_id, tipo: 'saida', valor: lazerMes[i], data: dia(m, '20'), descricao: 'Lazer', item_id: cat('Lazer'), budget_id: fatia('Dia a dia') })
+  txs.push({ tenant_id, tipo: 'saida', valor: 600, data: dia(m, '06'), descricao: 'Aporte no Tesouro', item_id: cat('Aporte mensal'), budget_id: fatia('Investir') })
 })
 
 // uma compra parcelada (notebook 12x de 300, a partir de março) -> mostra o recurso
@@ -158,7 +158,7 @@ for (let p = 0; p < 12; p++) {
   const data = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-15`
   txs.push({
     tenant_id, tipo: 'saida', valor: 300, data, descricao: 'Notebook Dell',
-    item_id: cat('Eletrônicos'), account_id: conta('Nubank'),
+    item_id: cat('Eletrônicos'), budget_id: fatia('Dia a dia'),
     parcela_grupo: grupoParcelas, parcela_num: p + 1, parcela_total: 12,
   })
 }

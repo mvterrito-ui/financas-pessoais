@@ -38,7 +38,7 @@ export const transactionService = {
         data: p.data,
         descricao: values.descricao ?? null,
         item_id: values.item_id ?? null,
-        account_id: values.account_id ?? null,
+        budget_id: values.budget_id ?? null,
         parcela_grupo: grupo,
         parcela_num: p.num,
         parcela_total: parcelas,
@@ -62,7 +62,7 @@ export const transactionService = {
         valor: values.valor,
         moeda: values.moeda,
         item_id: values.item_id ?? null,
-        account_id: values.account_id ?? null,
+        budget_id: values.budget_id ?? null,
         dia: Number(values.data.slice(8, 10)),
         inicio: competencia,
       })) as { id: string }
@@ -75,7 +75,7 @@ export const transactionService = {
 
   update: async (ctx: AuthContext, id: string, input: unknown) => {
     const values = transactionUpdateSchema.parse(input)
-    if (values.item_id || values.account_id) {
+    if (values.item_id || values.budget_id) {
       // Tipo final (o enviado ou o atual) pra conferir se a categoria combina.
       const tipo = values.tipo ?? ((await transactionRepo.getById(ctx.supabase, id)) as { tipo: 'entrada' | 'saida' }).tipo
       await validarVinculos(ctx.supabase, values, tipo)
@@ -93,17 +93,17 @@ export const transactionService = {
 
   // Importa itens já parseados de uma fatura/extrato, sem duplicar (external_id).
   async importStatement(ctx: AuthContext, input: unknown) {
-    const { account_id, itens } = statementImportSchema.parse(input)
+    const { budget_id, itens } = statementImportSchema.parse(input)
 
     const ids = itens.map((i) => i.external_id).filter((x): x is string => Boolean(x))
     const existentes = new Set(await transactionRepo.existingExternalIds(ctx.supabase, ids))
 
     const novos = itens.filter((i) => !i.external_id || !existentes.has(i.external_id))
     const tenant = exigirTenant(ctx)
-    if (account_id) await validarVinculos(ctx.supabase, { account_id }, 'saida')
+    if (budget_id) await validarVinculos(ctx.supabase, { budget_id }, 'saida')
     const rows = novos.map((i) => ({
       tenant_id: tenant,
-      account_id: account_id ?? null,
+      budget_id: i.tipo === 'saida' ? (budget_id ?? null) : null, // fatia só vale pra saída
       tipo: i.tipo,
       valor: i.valor,
       data: i.data,

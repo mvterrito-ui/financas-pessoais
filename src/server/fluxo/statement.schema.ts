@@ -16,7 +16,7 @@ export const statementItemSchema = z.object({
 })
 
 export const statementImportSchema = z.object({
-  account_id: z.string().uuid().optional().nullable(),
+  budget_id: z.string().uuid().optional().nullable(),
   itens: z.array(statementItemSchema).min(1, 'Nada pra importar').max(5000, 'Arquivo grande demais (máx. 5000 lançamentos)'),
 })
 

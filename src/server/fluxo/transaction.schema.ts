@@ -14,7 +14,7 @@ const transactionBase = z.object({
   parcelas: z.number().int().min(2).max(72).optional(),
   // Categoria do plano de contas (a mesma do Controle Anual).
   item_id: z.string().uuid().optional().nullable(),
-  account_id: z.string().uuid().optional().nullable(),
+  budget_id: z.string().uuid().optional().nullable(),
 })
 
 // O que a API ACEITA receber pra criar um lançamento. Se vier diferente -> 400.

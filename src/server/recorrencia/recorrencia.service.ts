@@ -86,7 +86,7 @@ export const recorrenciaService = {
     ])) as [Recorrencia & { ativo: boolean }, Pausa[]]
     if (!rec.ativo) throw new ErroHttp(400, 'Essa recorrência foi excluída')
     if (!aconteceEm(rec, pausas, c.mes)) throw new ErroHttp(400, 'Essa recorrência não acontece nesse mês (pausada ou fora do período)')
-    if (c.account_id) await validarVinculos(ctx.supabase, { account_id: c.account_id }, rec.tipo)
+    if (c.budget_id) await validarVinculos(ctx.supabase, { budget_id: c.budget_id }, rec.tipo)
     try {
       return await transactionRepo.create(ctx.supabase, {
         tenant_id: tenant(ctx),
@@ -96,7 +96,7 @@ export const recorrenciaService = {
         data: c.data,
         descricao: rec.descricao,
         item_id: rec.item_id,
-        account_id: c.account_id === undefined ? rec.account_id : c.account_id,
+        budget_id: c.budget_id === undefined ? rec.budget_id : c.budget_id,
         recorrencia_id: rec.id,
         competencia: c.mes,
         origem: 'manual',

@@ -61,37 +61,28 @@ const linhas = XLSX.utils.sheet_to_json(wb.Sheets['Renda Mensal'], {
 })
 
 const MESES = { Jan: 1, Fev: 2, Mar: 3, Abr: 4, Mai: 5, Jun: 6, Jul: 7, Ago: 8, Set: 9, Out: 10, Nov: 11, Dez: 12 }
-// coluna (índice) -> conta
+// coluna (índice) -> origem do gasto na planilha. Se existir uma fatia do
+// Orçamento com o mesmo nome, o lançamento entra nela.
 const CONTAS = [
-  { idx: 10, name: 'Cartão XP', tipo: 'cartao' },
-  { idx: 11, name: 'Cartão NU', tipo: 'cartao' },
-  { idx: 12, name: 'Pix', tipo: 'conta' },
-  { idx: 13, name: 'MEI', tipo: 'conta' },
-  { idx: 14, name: 'Cartão Bybit', tipo: 'cartao' },
-  { idx: 15, name: 'Faculdade', tipo: 'conta' },
+  { idx: 10, name: 'Cartão XP' },
+  { idx: 11, name: 'Cartão NU' },
+  { idx: 12, name: 'Pix' },
+  { idx: 13, name: 'MEI' },
+  { idx: 14, name: 'Cartão Bybit' },
+  { idx: 15, name: 'Faculdade' },
 ]
 const COL_VALOR = 2 // renda do mês
 const COL_MES = 1
 
-// ---- 4) Garante contas e a categoria "Renda" --------------------------
-async function garantirContas() {
-  const { data: existentes } = await supabase
-    .from('account')
+// ---- 4) Fatias do Orçamento (por nome) e a categoria "Renda" ----------
+async function fatiasPorNome() {
+  const { data, error } = await supabase
+    .from('budget_bucket')
     .select('id, name')
     .eq('tenant_id', tenant_id)
-  const mapa = new Map((existentes ?? []).map((a) => [a.name, a.id]))
-
-  for (const c of CONTAS) {
-    if (mapa.has(c.name)) continue
-    const { data, error } = await supabase
-      .from('account')
-      .insert({ tenant_id, name: c.name, tipo: c.tipo, moeda: 'BRL' })
-      .select('id')
-      .single()
-    if (error) throw error
-    mapa.set(c.name, data.id)
-  }
-  return mapa
+    .eq('ativo', true)
+  if (error) throw error
+  return new Map((data ?? []).map((f) => [f.name.trim().toLowerCase(), f.id]))
 }
 
 // Categoria "Renda" no plano de contas (grupo de receita; cria se faltar).
@@ -131,7 +122,7 @@ async function garantirCategoriaRenda() {
   return data.id
 }
 
-const contas = await garantirContas()
+const fatias = await fatiasPorNome()
 const categoriaRenda = await garantirCategoriaRenda()
 
 // ---- 5) Limpa import anterior (re-rodável) ----------------------------
@@ -157,7 +148,7 @@ for (const linha of linhas) {
     lancamentos.push({
       tenant_id, tipo: 'entrada', valor: renda, data,
       descricao: `Renda ${nomeMes}/${ANO}`,
-      item_id: categoriaRenda, account_id: null,
+      item_id: categoriaRenda, budget_id: null,
       origem: 'import', external_id: `planilha:${data}:renda`,
     })
   }
@@ -168,7 +159,7 @@ for (const linha of linhas) {
     lancamentos.push({
       tenant_id, tipo: 'saida', valor: v, data,
       descricao: `${c.name} ${nomeMes}/${ANO}`,
-      item_id: null, account_id: contas.get(c.name),
+      item_id: null, budget_id: fatias.get(c.name.toLowerCase()) ?? null,
       origem: 'import', external_id: `planilha:${data}:${c.name}`,
     })
   }

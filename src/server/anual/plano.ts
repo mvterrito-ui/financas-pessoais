@@ -1,13 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { ErroHttp } from '@/server/erro'
-import { accountRepo } from '@/server/fluxo/account.repo'
 import { ok } from '@/server/fluxo/crud'
+import { budgetRepo } from '@/server/orcamento/budget.repo'
 import { grupoRepo, itemRepo } from './anual.repo'
 
-// Regras do plano de contas usadas por lançamentos e recorrências.
+// Regras de vínculo usadas por lançamentos e recorrências.
 //
 // A FK do banco NÃO passa pelo RLS: sem checar, daria pra apontar pra
-// categoria/conta de outro usuário. getById passa pelo RLS (404 se não for dele).
+// categoria/fatia de outro usuário. getById passa pelo RLS (erro se não for dele).
 
 /** Categoria existe, está ativa e combina com o tipo (entrada = receita). */
 export async function validarCategoria(sb: SupabaseClient, itemId: string, tipo: 'entrada' | 'saida') {
@@ -24,19 +24,22 @@ export async function validarCategoria(sb: SupabaseClient, itemId: string, tipo:
     )
 }
 
-export async function validarConta(sb: SupabaseClient, accountId: string) {
-  await accountRepo.getById(sb, accountId)
+/** Fatia do Orçamento: é do usuário, está ativa e só vale pra saída. */
+export async function validarFatia(sb: SupabaseClient, budgetId: string, tipo: 'entrada' | 'saida') {
+  if (tipo === 'entrada') throw new ErroHttp(400, 'Só saídas usam fatia do orçamento')
+  const fatia = await budgetRepo.getById(sb, budgetId)
+  if (!fatia.ativo) throw new ErroHttp(400, 'Essa fatia foi removida')
 }
 
-/** Valida o que vier preenchido (null/undefined = sem categoria/conta). */
+/** Valida o que vier preenchido (null/undefined = sem categoria/fatia). */
 export async function validarVinculos(
   sb: SupabaseClient,
-  v: { item_id?: string | null; account_id?: string | null },
+  v: { item_id?: string | null; budget_id?: string | null },
   tipo: 'entrada' | 'saida',
 ) {
   await Promise.all([
     v.item_id ? validarCategoria(sb, v.item_id, tipo) : null,
-    v.account_id ? validarConta(sb, v.account_id) : null,
+    v.budget_id ? validarFatia(sb, v.budget_id, tipo) : null,
   ])
 }
 

@@ -1,21 +1,21 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CircleAlert, CreditCard, Pencil, Percent, PieChart, Plus, Receipt, Trash2, Wallet } from 'lucide-react'
+import { CircleAlert, Pencil, Percent, PieChart, Plus, Receipt, Trash2, Wallet } from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Select } from '@/components/ui/select'
 import { MonthPicker } from '@/components/ui/month-picker'
 import { NumberCommit } from '@/components/ui/number-field'
 import { usePromptDialog } from '@/components/ui/prompt'
 import { cn, fimDoMes, hojeISO, rotuloMes } from '@/lib/utils'
 import { useCotacao } from '@/lib/useRates'
-import { formatBRL, valorEmBRL, type Account, type Moeda, type Transaction } from '@/server/fluxo/fluxo.calc'
+import { formatBRL, valorEmBRL, type Moeda, type Transaction } from '@/server/fluxo/fluxo.calc'
 import { alocar, somaPercentual, usoPorFatia, type BudgetBucket } from '@/server/orcamento/orcamento.calc'
 
 const fmtPct = (n: number) => `${n.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`
@@ -26,7 +26,6 @@ export default function OrcamentoClient() {
   const { rates } = useCotacao()
   const [mes, setMes] = useState(hojeISO().slice(0, 7)) // AAAA-MM
   const [fatias, setFatias] = useState<BudgetBucket[]>([])
-  const [contas, setContas] = useState<Account[]>([])
   const [txs, setTxs] = useState<Transaction[]>([])
   const [carregado, setCarregado] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -54,33 +53,19 @@ export default function OrcamentoClient() {
     [api],
   )
 
-  const buscarCadastros = useCallback(
-    () => Promise.all([api('/api/budget'), api('/api/account')]) as Promise<[BudgetBucket[], Account[]]>,
-    [api],
-  )
-  const recarregar = useCallback(
-    () =>
-      buscarCadastros().then(([f, c]) => {
-        setFatias(f)
-        setContas(c)
-      }),
-    [buscarCadastros],
-  )
+  const buscarFatias = useCallback(() => api('/api/budget') as Promise<BudgetBucket[]>, [api])
+  const recarregar = useCallback(() => buscarFatias().then(setFatias), [buscarFatias])
 
   useEffect(() => {
     let vivo = true
-    buscarCadastros()
-      .then(([f, c]) => {
-        if (!vivo) return
-        setFatias(f)
-        setContas(c)
-      })
+    buscarFatias()
+      .then((f) => vivo && setFatias(f))
       .catch((e) => vivo && setErro((e as Error).message))
       .finally(() => vivo && setCarregado(true))
     return () => {
       vivo = false
     }
-  }, [buscarCadastros])
+  }, [buscarFatias])
 
   useEffect(() => {
     let vivo = true
@@ -131,32 +116,8 @@ export default function OrcamentoClient() {
   }
 
   function remover(f: BudgetBucket) {
-    const ligadas = contas.filter((c) => c.budget_id === f.id).length
-    const aviso = ligadas ? `\n\n${ligadas} conta(s) ligada(s) a ela ficam sem fatia.` : ''
-    if (!confirm(`Remover a fatia "${f.name}"?${aviso}`)) return
+    if (!confirm(`Remover a fatia "${f.name}"?\n\nOs lançamentos e recorrências dela ficam sem fatia.`)) return
     acao(() => enviar(`/api/budget/${f.id}`, 'DELETE'))
-  }
-
-  function ligarConta(c: Account, budgetId: string) {
-    setContas((cs) => cs.map((x) => (x.id === c.id ? { ...x, budget_id: budgetId || null } : x)))
-    acao(() => enviar(`/api/account/${c.id}`, 'PATCH', { budget_id: budgetId || null }))
-  }
-
-  async function novaConta() {
-    const v = await ask({
-      title: 'Nova conta ou cartão',
-      fields: [
-        { name: 'name', label: 'Nome', placeholder: 'Nubank, Cartão XP, Pix…' },
-        {
-          name: 'budget_id',
-          label: 'Fatia',
-          type: 'select',
-          options: [{ value: '', label: 'Sem fatia' }, ...fatias.map((f) => ({ value: f.id, label: f.name }))],
-        },
-      ],
-    })
-    if (!v?.name) return
-    acao(() => enviar('/api/account', 'POST', { name: v.name, budget_id: v.budget_id || null }))
   }
 
   // ---- números do mês
@@ -167,7 +128,7 @@ export default function OrcamentoClient() {
   const entradas = txs.filter((t) => t.tipo === 'entrada').reduce((s, t) => s + emReal(t.valor, t.moeda), 0)
   const saidas = useMemo(() => txs.filter((t) => t.tipo === 'saida'), [txs])
   const gasto = saidas.reduce((s, t) => s + emReal(t.valor, t.moeda), 0)
-  const { porFatia, semFatia } = useMemo(() => usoPorFatia(saidas, contas, emReal), [saidas, contas, emReal])
+  const { porFatia, semFatia } = useMemo(() => usoPorFatia(saidas, fatias, emReal), [saidas, fatias, emReal])
   const alocacoes = alocar(entradas, fatias)
   const soma = somaPercentual(fatias)
   const somaOk = Math.abs(soma - 100) < 0.005
@@ -224,7 +185,7 @@ export default function OrcamentoClient() {
         <EmptyState
           icon={PieChart}
           titulo="Nenhuma fatia ainda"
-          descricao="Divida as entradas do mês em fatias (ex.: Gastos fixos 50%, Reserva 20%, Lazer 10%) e ligue cada conta a uma delas."
+          descricao="Divida as entradas do mês em fatias (ex.: Gastos fixos 50%, Reserva 20%, Lazer 10%) Depois, escolha a fatia de cada saída nos lançamentos."
           acao={
             <Button onClick={novaFatia}>
               <Plus /> Nova fatia
@@ -245,7 +206,7 @@ export default function OrcamentoClient() {
               const usado = porFatia.get(f.id) ?? 0
               const resta = f.valor - usado
               const passou = resta < 0
-              const nomesContas = contas.filter((c) => c.budget_id === f.id).map((c) => c.name)
+              const qtd = saidas.filter((t) => t.budget_id === f.id).length
               return (
                 <li
                   key={f.id}
@@ -254,7 +215,7 @@ export default function OrcamentoClient() {
                   <div className="min-w-0">
                     <div className="truncate font-medium">{f.name}</div>
                     <div className="truncate text-xs text-muted-foreground">
-                      {nomesContas.length ? nomesContas.join(', ') : 'Nenhuma conta ligada'}
+                      {qtd === 0 ? 'Nenhuma saída no mês' : qtd === 1 ? '1 saída no mês' : `${qtd} saídas no mês`}
                     </div>
                   </div>
                   <NumberCommit
@@ -300,46 +261,13 @@ export default function OrcamentoClient() {
       {semFatia > 0 && (
         <p className="mb-5 flex items-start gap-2 text-sm text-muted-foreground">
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-          {formatBRL(semFatia)} em saídas não entram em nenhuma fatia (sem conta, ou numa conta sem fatia).
+          {formatBRL(semFatia)} em saídas sem fatia.
+          <Link href="/fluxo" className="font-medium text-primary hover:underline">
+            Ver lançamentos
+          </Link>
         </p>
       )}
 
-      {/* Contas: cada uma usa uma fatia */}
-      <Card className="p-4">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <CreditCard className="h-4 w-4" /> Contas e cartões
-          </h2>
-          <Button variant="outline" size="sm" onClick={novaConta}>
-            <Plus /> Nova conta
-          </Button>
-        </div>
-        <p className="mb-4 text-xs text-muted-foreground">As saídas lançadas em cada conta contam como uso da fatia escolhida.</p>
-        {contas.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">Nenhuma conta cadastrada.</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {contas.map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-3 py-2">
-                <span className="min-w-0 truncate text-sm">{c.name}</span>
-                <Select
-                  aria-label={`Fatia de ${c.name}`}
-                  className="w-44 shrink-0 sm:w-56"
-                  value={c.budget_id ?? ''}
-                  onChange={(e) => ligarConta(c, e.target.value)}
-                >
-                  <option value="">Sem fatia</option>
-                  {fatias.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </Select>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
     </PageLayout>
   )
 }

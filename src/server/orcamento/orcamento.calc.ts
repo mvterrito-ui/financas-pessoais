@@ -24,22 +24,21 @@ export function somaPercentual(buckets: BudgetBucket[]): number {
 }
 
 /**
- * Uso de cada fatia: soma das saídas lançadas nas contas ligadas a ela.
- * `emReal` converte o valor do lançamento pra real. Saída sem conta, ou numa
- * conta sem fatia, vai pra `semFatia`.
+ * Uso de cada fatia: soma das saídas lançadas nela. `emReal` converte o
+ * valor do lançamento pra real. Saída sem fatia (ou numa fatia que não está
+ * na lista, ex.: removida) vai pra `semFatia`.
  */
 export function usoPorFatia(
-  saidas: { valor: number | string; moeda?: string | null; account_id?: string | null }[],
-  contas: { id: string; budget_id?: string | null }[],
+  saidas: { valor: number | string; moeda?: string | null; budget_id?: string | null }[],
+  fatias: { id: string }[],
   emReal: (valor: number | string, moeda?: string | null) => number,
 ) {
-  const fatiaDaConta = new Map(contas.map((c) => [c.id, c.budget_id ?? null]))
+  const ids = new Set(fatias.map((f) => f.id))
   const porFatia = new Map<string, number>()
   let semFatia = 0
   for (const s of saidas) {
-    const fatia = s.account_id ? fatiaDaConta.get(s.account_id) : null
     const v = emReal(s.valor, s.moeda)
-    if (fatia) porFatia.set(fatia, (porFatia.get(fatia) ?? 0) + v)
+    if (s.budget_id && ids.has(s.budget_id)) porFatia.set(s.budget_id, (porFatia.get(s.budget_id) ?? 0) + v)
     else semFatia += v
   }
   return { porFatia, semFatia }

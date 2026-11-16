@@ -7,7 +7,7 @@ export type Recorrencia = {
   valor: number | string
   moeda: 'BRL' | 'USD' | 'EUR'
   item_id: string | null
-  account_id: string | null
+  budget_id: string | null
   dia: number
   inicio: string // AAAA-MM-01
   fim: string | null // último mês (AAAA-MM-01), null = sem fim
