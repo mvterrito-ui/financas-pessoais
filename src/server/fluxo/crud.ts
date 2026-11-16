@@ -77,3 +77,9 @@ export async function buscarTudo<T = Record<string, unknown>>(
     if (!data || data.length < pagina) return tudo
   }
 }
+
+/** Resposta do Supabase -> dado, ou lança o erro. */
+export function ok<T>({ data, error }: { data: T | null; error: { message: string } | null }): T {
+  if (error) throw new Error(error.message)
+  return data as T
+}

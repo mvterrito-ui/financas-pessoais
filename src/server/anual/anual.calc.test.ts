@@ -7,7 +7,9 @@ import {
   preencherAdiante,
   resumo,
   itemVisivel,
-  aplicarFluxo,
+  somarEmReal,
+  planejado,
+  desvio,
   somarSeries,
   total,
   type Grupo,
@@ -83,28 +85,35 @@ describe('anual.calc', () => {
   })
 })
 
-describe('aplicarFluxo (Fluxo de Caixa -> Controle Anual)', () => {
-  const valores = indexar([
-    { item_id: 'merc', mes: '2026-01-01', valor: 999 }, // digitado, mas o item está ligado
-    { item_id: 'luz', mes: '2026-01-01', valor: 130 }, // manual, não ligado
-  ])
-  const fluxo = [
-    { item_id: 'merc', mes: '2026-01-01', moeda: 'BRL', valor: 300 },
-    { item_id: 'merc', mes: '2026-01-01', moeda: 'USD', valor: 10 },
-    { item_id: 'merc', mes: '2026-02-01', moeda: 'BRL', valor: '250' },
-  ]
+describe('realizado × planejado', () => {
   const emReal = (v: number, m: string) => (m === 'USD' ? v * 5 : v)
 
-  it('item ligado usa só o Fluxo (convertido); o manual dos outros fica', () => {
-    const r = aplicarFluxo(valores, fluxo, new Set(['merc']), emReal)
-    expect(r.get('merc|2026-01-01')).toBe(350) // 300 + 10×5 (o 999 digitado não conta)
-    expect(r.get('merc|2026-02-01')).toBe(250)
-    expect(r.get('luz|2026-01-01')).toBe(130)
+  it('somarEmReal junta moedas na mesma célula', () => {
+    const r = somarEmReal(
+      [
+        { item_id: 'merc', mes: '2026-01-01', moeda: 'BRL', valor: 300 },
+        { item_id: 'merc', mes: '2026-01-01', moeda: 'USD', valor: '10' },
+      ],
+      emReal,
+    )
+    expect(r.get('merc|2026-01-01')).toBe(350)
   })
 
-  it('sem ligação, nada muda', () => {
-    const r = aplicarFluxo(valores, fluxo, new Set(), emReal)
-    expect(r.get('merc|2026-01-01')).toBe(999)
-    expect(r.has('merc|2026-02-01')).toBe(false)
+  it('planejado: digitado tem prioridade sobre o das recorrências', () => {
+    const manual = indexar([{ item_id: 'aluguel', mes: '2026-02-01', valor: 2100 }])
+    const rec = indexar([
+      { item_id: 'aluguel', mes: '2026-01-01', valor: 2000 },
+      { item_id: 'aluguel', mes: '2026-02-01', valor: 2000 },
+    ])
+    const p = planejado(manual, rec)
+    expect(p.get('aluguel|2026-01-01')).toBe(2000)
+    expect(p.get('aluguel|2026-02-01')).toBe(2100)
+  })
+
+  it('desvio: gastar mais é ruim; receber menos é ruim', () => {
+    expect(desvio('despesa', 1200, 1000)).toEqual({ diferenca: 200, ruim: true })
+    expect(desvio('receita', 4500, 5000)).toEqual({ diferenca: -500, ruim: true })
+    expect(desvio('receita', 5200, 5000)?.ruim).toBe(false)
+    expect(desvio('despesa', undefined, 1000)).toBeNull()
   })
 })

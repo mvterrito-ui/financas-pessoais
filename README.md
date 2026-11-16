@@ -8,9 +8,10 @@ Comecei como projeto de estudo de backend (venho de QA e front-end). O foco é a
 
 ## Funcionalidades
 
-- **Fluxo de caixa:** entradas e saídas por mês, compras parceladas, gastos fixos que se repetem todo mês (com data de término) e importação de fatura OFX/CSV sem duplicar lançamentos.
-- **Orçamento:** divide a renda do mês em baldes por percentual.
-- **Controle anual:** grade de 12 meses com grupos, categorias e itens definidos pelo usuário. Itens podem ser ligados a categorias do fluxo de caixa e somam os lançamentos automaticamente.
+- **Plano de contas único:** grupos (receita, despesa, investimento), subgrupos opcionais e categorias. Lançamentos, recorrências, controle anual e relatórios usam o mesmo plano.
+- **Lançamentos:** entradas e saídas do mês, compras parceladas e importação de fatura OFX/CSV sem duplicar.
+- **Recorrências:** receitas e despesas fixas (salário, aluguel, assinaturas) que podem ser pausadas, reajustadas a partir de um mês e finalizadas. Cada mês vira uma previsão que você confirma (pago ou recebido), podendo ajustar o valor.
+- **Controle anual:** os 12 meses por categoria, comparando planejado (recorrências ou valor digitado) com realizado (lançamentos). Cada grupo pode ter meta em % da receita.
 - **Patrimônio:** foto mensal por lugar, em BRL, USD ou EUR com cotação ao vivo. Ações, FIIs, renda fixa, cripto e consórcios entram sozinhos; o resto é manual.
 - **Projeção:** juros compostos a partir do crescimento histórico (comparando só os mesmos itens mês a mês), com aporte mensal e horizonte de 1 a 20 anos.
 - **Investimentos:** ações e FIIs com cotação ao vivo (Yahoo Finance), renda fixa, cripto por corretora e consórcios com reajuste de parcela.
@@ -20,17 +21,17 @@ Comecei como projeto de estudo de backend (venho de QA e front-end). O foco é a
 
 Capturas com dados fictícios (usuário de demonstração).
 
-| Visão geral | Fluxo de Caixa |
+| Visão geral | Lançamentos |
 |---|---|
-| ![Dashboard](docs/screenshots/visao-geral.png) | ![Fluxo de Caixa](docs/screenshots/fluxo.png) |
+| ![Dashboard](docs/screenshots/visao-geral.png) | ![Lançamentos](docs/screenshots/fluxo.png) |
 
 | Relatórios (gastos por categoria) | Projeção |
 |---|---|
 | ![Relatórios](docs/screenshots/relatorios.png) | ![Projeção](docs/screenshots/projecao.png) |
 
-| Patrimônio | Orçamento |
-|---|---|
-| ![Patrimônio](docs/screenshots/patrimonio.png) | ![Orçamento](docs/screenshots/orcamento.png) |
+| Patrimônio |
+|---|
+| ![Patrimônio](docs/screenshots/patrimonio.png) |
 
 ## Stack
 

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { precosB3 } from '@/server/cotacao'
+import { ok } from '@/server/fluxo/crud'
 import { totais as carteiraTotais, type Fii } from '@/server/fii/fii.calc'
 import { totais as rfTotais, type FixedIncome } from '@/server/renda-fixa/renda-fixa.calc'
 import { valorAtual as criptoValor, type CryptoSummary } from '@/server/cripto/cripto.calc'
@@ -14,10 +15,6 @@ import { ORIGENS, mesAtualBR, type Origem } from './patrimonio.calc'
 
 const centavos = (n: number) => Math.round(Math.max(0, n) * 100) / 100
 
-function ok<T>({ data, error }: { data: T | null; error: { message: string } | null }): T {
-  if (error) throw new Error(error.message)
-  return data as T
-}
 
 // Garante os 4 lugares automáticos do tenant (cria na 1ª vez).
 // unique (tenant_id, origem) + ignoreDuplicates => seguro em chamadas paralelas.

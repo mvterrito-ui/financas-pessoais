@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { ErroHttp } from '@/server/erro'
 
 // O "quem está logado" que toda rota de API usa.
 // Devolve o supabase já com a sessão (pro RLS isolar por tenant),
@@ -33,4 +34,10 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     tenantId: profile.tenant_id,
     role: profile.role,
   }
+}
+
+/** tenant do usuário logado (403 se a conta não estiver vinculada a um). */
+export function exigirTenant(ctx: AuthContext): string {
+  if (!ctx.tenantId) throw new ErroHttp(403, 'Usuário sem conta vinculada')
+  return ctx.tenantId
 }

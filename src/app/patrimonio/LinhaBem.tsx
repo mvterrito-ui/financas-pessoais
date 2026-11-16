@@ -1,6 +1,14 @@
 'use client'
 
-import { Check, EyeOff, Loader2, Trash2, TriangleAlert } from 'lucide-react'
+import {
+  Check,
+  EyeOff,
+  Loader2,
+  Trash2,
+  TriangleAlert,
+  ArrowUp,
+  ArrowDown,
+} from 'lucide-react'
 import { MoneyInput } from '@/components/ui/money-input'
 import { MoedaToggle, simboloMoeda } from '@/components/ui/moeda-toggle'
 import { cn } from '@/lib/utils'
@@ -74,7 +82,8 @@ export function LinhaBem({
               <>
                 {diff !== 0 && (
                   <span className={cn('font-medium', diff > 0 ? 'text-success' : 'text-destructive')}>
-                    {diff > 0 ? '▲' : '▼'} {fmtMoeda(Math.abs(diff), place.moeda)}
+                    {diff > 0 ? <ArrowUp className="inline h-3 w-3" /> : <ArrowDown className="inline h-3 w-3" />}{' '}
+                    {fmtMoeda(Math.abs(diff), place.moeda)}
                   </span>
                 )}
                 {diff !== 0 && <span>vs mês anterior</span>}

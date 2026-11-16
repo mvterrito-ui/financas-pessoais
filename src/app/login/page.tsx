@@ -44,7 +44,7 @@ function AvisoExpirou() {
 }
 
 const DESTAQUES = [
-  { icon: Wallet, titulo: 'Fluxo de caixa', texto: 'Entradas, saídas, parcelas e faturas importadas.' },
+  { icon: Wallet, titulo: 'Caixa', texto: 'Lançamentos, contas fixas e o ano planejado × realizado.' },
   { icon: TrendingUp, titulo: 'Patrimônio e investimentos', texto: 'Ações, FIIs, renda fixa e cripto com cotação ao vivo.' },
   { icon: CalendarRange, titulo: 'Controle anual', texto: 'O ano inteiro mês a mês, com saldo e gráficos.' },
 ]

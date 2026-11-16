@@ -10,6 +10,7 @@ import {
   CalendarDays,
 } from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
+import { nomeCategoria, type Plano } from '@/components/shared/CategoriaSelect'
 import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Card } from '@/components/ui/card'
@@ -23,7 +24,6 @@ import {
   totalEntradas,
   totalSaidas,
   porCategoria,
-  type Category,
   type Transaction,
   type CategoriaResumo,
 } from '@/server/fluxo/fluxo.calc'
@@ -80,7 +80,7 @@ export default function RelatoriosClient() {
   const router = useRouter()
   const rates = useRates()
   const [txs, setTxs] = useState<Transaction[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const [plano, setPlano] = useState<Plano>({ grupos: [], categorias: [], itens: [] })
   const [erro, setErro] = useState<string | null>(null)
   const [mes, setMes] = useState(hojeISO().slice(0, 7))
   const [todoPeriodo, setTodoPeriodo] = useState(false)
@@ -107,12 +107,7 @@ export default function RelatoriosClient() {
         params.set('ate', fimDoMes(mes))
       }
       const qs = params.toString()
-      const [t, c] = await Promise.all([
-        api('/api/transaction' + (qs ? `?${qs}` : '')),
-        api('/api/category'),
-      ])
-      setTxs(t)
-      setCategories(c)
+      setTxs(await api('/api/transaction' + (qs ? `?${qs}` : '')))
     } catch (e) {
       setErro((e as Error).message)
     }
@@ -122,8 +117,27 @@ export default function RelatoriosClient() {
     carregar()
   }, [carregar])
 
-  const gastos = useMemo(() => porCategoria(txs, categories, 'saida', rates), [txs, categories, rates])
-  const entradas = useMemo(() => porCategoria(txs, categories, 'entrada', rates), [txs, categories, rates])
+  // O plano de contas não muda com o mês: carrega uma vez.
+  useEffect(() => {
+    let vivo = true
+    api('/api/anual/estrutura')
+      .then((pl) => vivo && setPlano(pl))
+      .catch((e) => vivo && setErro((e as Error).message))
+    return () => {
+      vivo = false
+    }
+  }, [api])
+
+  // Categorias do plano (com subgrupo no nome) e os grupos.
+  const nomesCategorias = useMemo(
+    () => plano.itens.map((i) => ({ id: i.id, name: nomeCategoria(plano, i.id) ?? i.name })),
+    [plano],
+  )
+  const grupoDoItem = useMemo(() => new Map(plano.itens.map((i) => [i.id, i.group_id])), [plano])
+  const porGrupo = (t: Transaction) => (t.item_id ? (grupoDoItem.get(t.item_id) ?? null) : null)
+  const gastos = useMemo(() => porCategoria(txs, nomesCategorias, 'saida', rates), [txs, nomesCategorias, rates])
+  const entradas = useMemo(() => porCategoria(txs, nomesCategorias, 'entrada', rates), [txs, nomesCategorias, rates])
+  const gastosPorGrupo = porCategoria(txs, plano.grupos, 'saida', rates, porGrupo, 'Sem grupo')
   const resultado = saldo(txs, rates)
 
   return (
@@ -178,10 +192,11 @@ export default function RelatoriosClient() {
         <EmptyState
           icon={BarChart3}
           titulo="Nada pra relatar nesse período"
-          descricao="Lance entradas e saídas no Fluxo de Caixa pra ver a quebra por categoria aqui."
+          descricao="Registre entradas e saídas em Lançamentos pra ver a quebra por categoria aqui."
         />
       ) : (
         <div className="grid gap-5 lg:grid-cols-2">
+          <Quebra titulo="Gastos por grupo" itens={gastosPorGrupo} cor="destructive" />
           <Quebra titulo="Gastos por categoria" itens={gastos} cor="destructive" />
           <Quebra titulo="Entradas por categoria" itens={entradas} cor="emerald" />
         </div>

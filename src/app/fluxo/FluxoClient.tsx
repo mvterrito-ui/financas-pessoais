@@ -8,7 +8,6 @@ import {
   Trash2,
   Pencil,
   Repeat,
-  CalendarX2,
   ArrowUpRight,
   ArrowDownRight,
   Scale,
@@ -16,6 +15,9 @@ import {
   Receipt,
   CalendarDays,
   CreditCard,
+  CalendarClock,
+  SkipForward,
+  Check,
 } from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
@@ -31,7 +33,7 @@ import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { MonthPicker } from '@/components/ui/month-picker'
-import { hojeISO, formatData, fimDoMes, rotuloMes, mesAnterior } from '@/lib/utils'
+import { hojeISO, formatData, fimDoMes, rotuloMes } from '@/lib/utils'
 import {
   formatBRL,
   formatMoeda,
@@ -41,12 +43,13 @@ import {
   totalEntradas,
   totalSaidas,
   type Account,
-  type Category,
   type Moeda,
   type Transaction,
 } from '@/server/fluxo/fluxo.calc'
 import { parseStatement, type ParsedItem } from '@/server/fluxo/statement'
 import { usePromptDialog } from '@/components/ui/prompt'
+import { CategoriaSelect, gruposDoTipo, nomeCategoria, type Plano } from '@/components/shared/CategoriaSelect'
+import { dataNoMes, type Previsto } from '@/server/recorrencia/recorrencia.calc'
 import { useCotacao } from '@/lib/useRates'
 
 // Função (não constante): a data é a de HOJE no momento em que o formulário
@@ -57,11 +60,9 @@ const novoVazio = () => ({
   moeda: 'BRL' as Moeda,
   data: hojeISO(),
   descricao: '',
-  category_id: '',
+  item_id: '', // categoria do plano de contas
   account_id: '',
-  recorrente: false,
-  repete: true, // ao marcar "fixo", já vem com "repetir todo mês"
-  recorrente_ate: '', // 'AAAA-MM' (último mês) ou '' = sem fim
+  repetir: false, // ao criar: vira uma recorrência (previsão todo mês)
   parcelado: false,
   parcelas: '2', // nº de parcelas quando 'parcelado' está ligado
 })
@@ -73,7 +74,8 @@ export default function FluxoClient() {
 
   const [txs, setTxs] = useState<Transaction[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const [plano, setPlano] = useState<Plano>({ grupos: [], categorias: [], itens: [] })
+  const [previstos, setPrevistos] = useState<Previsto[]>([])
   const [erro, setErro] = useState<string | null>(null)
   const [aberto, setAberto] = useState(false)
   const [editId, setEditId] = useState<string | null>(null) // null = criando; id = editando
@@ -108,12 +110,12 @@ export default function FluxoClient() {
     [router],
   )
 
-  // Cadastros (contas + categorias) carregam uma vez.
+  // Cadastros (contas + plano de contas) carregam uma vez.
   const carregarCadastros = useCallback(async () => {
     try {
-      const [a, c] = await Promise.all([api('/api/account'), api('/api/category')])
+      const [a, pl] = await Promise.all([api('/api/account'), api('/api/anual/estrutura')])
       setAccounts(a)
-      setCategories(c)
+      setPlano(pl)
     } catch (e) {
       setErro((e as Error).message)
     }
@@ -129,8 +131,13 @@ export default function FluxoClient() {
       }
       if (fTipo) params.set('tipo', fTipo)
       const qs = params.toString()
-      const t = await api('/api/transaction' + (qs ? `?${qs}` : ''))
+      const [t, pv] = await Promise.all([
+        api('/api/transaction' + (qs ? `?${qs}` : '')),
+        // Previsões das recorrências só fazem sentido com um mês escolhido.
+        fMes ? api(`/api/recorrencia/previstos?mes=${fMes}-01`) : Promise.resolve([]),
+      ])
       setTxs(t)
+      setPrevistos(pv)
     } catch (e) {
       setErro((e as Error).message)
     }
@@ -152,17 +159,7 @@ export default function FluxoClient() {
   }
 
   // Abre o mesmo modal, mas pré-preenchido pra editar um lançamento existente.
-  async function abrirEditar(t0: Transaction) {
-    // Repetição automática: edita o lançamento ORIGINAL (vale pra todos os meses).
-    let t = t0
-    if (t0.virtual && t0.origem_id) {
-      try {
-        t = (await api(`/api/transaction/${t0.origem_id}`)) as Transaction
-      } catch (e) {
-        setErro((e as Error).message)
-        return
-      }
-    }
+  function abrirEditar(t: Transaction) {
     setEditId(t.id)
     setF({
       tipo: t.tipo,
@@ -170,11 +167,9 @@ export default function FluxoClient() {
       moeda: t.moeda ?? 'BRL',
       data: t.data.slice(0, 10),
       descricao: t.descricao ?? '',
-      category_id: t.category_id ?? '',
+      item_id: t.item_id ?? '',
       account_id: t.account_id ?? '',
-      recorrente: t.recorrente,
-      repete: Boolean(t.repete),
-      recorrente_ate: t.recorrente_ate ? t.recorrente_ate.slice(0, 7) : '',
+      repetir: false,
       parcelado: false, // não dá pra "re-parcelar" ao editar
       parcelas: '2',
     })
@@ -185,15 +180,6 @@ export default function FluxoClient() {
   async function lancar(e: FormEvent) {
     e.preventDefault()
     setErro(null)
-    const repete = f.recorrente && f.repete
-    if (repete && f.recorrente_ate && f.recorrente_ate < f.data.slice(0, 7)) {
-      setErro('O último mês da repetição não pode ser antes da data do lançamento.')
-      return
-    }
-    const repeticao = {
-      repete,
-      recorrente_ate: repete && f.recorrente_ate ? `${f.recorrente_ate}-01` : null,
-    }
     try {
       if (editId) {
         // Editando: PATCH só dos campos do lançamento (sem parcelas).
@@ -206,14 +192,14 @@ export default function FluxoClient() {
             moeda: f.moeda,
             data: f.data,
             descricao: f.descricao || null,
-            category_id: f.category_id || null,
+            item_id: f.item_id || null,
             account_id: f.account_id || null,
-            recorrente: f.recorrente,
-            ...repeticao,
           }),
         })
       } else {
         const parcelar = f.tipo === 'saida' && f.parcelado && Number(f.parcelas) >= 2
+        // "Repetir todo mês" vai junto: o servidor cria o lançamento e a
+        // recorrência numa chamada só (sem deixar meio feito).
         await api('/api/transaction', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -223,11 +209,10 @@ export default function FluxoClient() {
             moeda: f.moeda,
             data: f.data,
             descricao: f.descricao || null,
-            category_id: f.category_id || null,
+            item_id: f.item_id || null,
             account_id: f.account_id || null,
-            recorrente: parcelar ? false : f.recorrente,
-            ...(parcelar ? {} : repeticao),
             parcelas: parcelar ? Number(f.parcelas) : undefined,
+            repetir: !parcelar && f.repetir ? true : undefined,
           }),
         })
       }
@@ -238,20 +223,79 @@ export default function FluxoClient() {
     }
   }
 
+  // Nova categoria direto no plano de contas (num grupo do tipo certo).
   async function criarCategoria() {
     try {
+      const grupos = gruposDoTipo(plano.grupos, f.tipo)
+      if (grupos.length === 0) {
+        setErro(
+          `Crie antes um grupo de ${f.tipo === 'entrada' ? 'receita' : 'despesa'} no Controle Anual (é o plano de contas).`,
+        )
+        return
+      }
       const v = await ask({
-        title: `Nova categoria de ${f.tipo === 'entrada' ? 'entrada' : 'saída'}`,
-        fields: [{ name: 'name', label: 'Nome da categoria', placeholder: 'Mercado, Salário…' }],
+        title: `Nova categoria de ${f.tipo === 'entrada' ? 'receita' : 'despesa'}`,
+        fields: [
+          { name: 'name', label: 'Nome da categoria', placeholder: f.tipo === 'entrada' ? 'Salário' : 'Mercado' },
+          { name: 'group_id', label: 'Grupo', type: 'select', options: grupos.map((g) => ({ value: g.id, label: g.name })) },
+        ],
       })
       if (!v?.name) return
-      const nova = await api('/api/category', {
+      const nova = await api('/api/anual/item', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: v.name, tipo: f.tipo }),
+        body: JSON.stringify({
+          name: v.name,
+          group_id: v.group_id,
+          ordem: plano.itens.filter((i) => i.group_id === v.group_id).length + 1,
+        }),
       })
       await carregarCadastros()
-      set('category_id', nova.id)
+      set('item_id', nova.id)
+    } catch (e) {
+      setErro((e as Error).message)
+    }
+  }
+
+  // Previsão do mês (recorrência) -> lançamento de verdade.
+  async function confirmarPrevisto(p: Previsto, ajustar = false) {
+    let valor = p.valor
+    let data = p.data
+    if (ajustar) {
+      const v = await ask({
+        title: `Confirmar ${p.recorrencia.descricao}`,
+        submitLabel: 'Confirmar',
+        fields: [
+          { name: 'valor', label: 'Valor deste mês', type: 'money', prefixo: simboloMoeda(p.recorrencia.moeda), valor: String(p.valor) },
+          { name: 'dia', label: 'Dia', type: 'number', casas: 0, valor: p.data.slice(8, 10) },
+        ],
+      })
+      if (!v) return
+      valor = Number(v.valor) || p.valor
+      // Dia além do fim do mês (31 em fevereiro) vira o último dia.
+      data = dataNoMes({ dia: Math.min(Math.max(Number(v.dia) || 1, 1), 31) }, p.mes)
+    }
+    try {
+      await api(`/api/recorrencia/${p.recorrencia.id}/confirmar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mes: p.mes, valor, data }),
+      })
+      await carregarTx()
+    } catch (e) {
+      setErro((e as Error).message)
+    }
+  }
+
+  async function pularPrevisto(p: Previsto) {
+    if (!confirm(`Pular "${p.recorrencia.descricao}" em ${rotuloMes(p.mes.slice(0, 7))}? Os outros meses continuam.`)) return
+    try {
+      await api(`/api/recorrencia/${p.recorrencia.id}/acao`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'pular', mes: p.mes }),
+      })
+      await carregarTx()
     } catch (e) {
       setErro((e as Error).message)
     }
@@ -276,61 +320,8 @@ export default function FluxoClient() {
     }
   }
 
-  // Muda até quando a repetição vai (no lançamento original).
-  async function encerrarRepeticao(t: Transaction) {
-    const origem = t.origem_id ?? t.id
-    const mes = t.data.slice(0, 7)
-    const v = await ask({
-      title: `Encerrar "${t.descricao || 'lançamento fixo'}"`,
-      submitLabel: 'Salvar',
-      fields: [
-        {
-          name: 'opcao',
-          label: 'Até quando ele se repete?',
-          type: 'select',
-          options: [
-            { value: 'ultima', label: `Esta é a última (${rotuloMes(mes)})` },
-            ...(t.virtual ? [{ value: 'antes', label: `Encerrar antes deste mês (última: ${rotuloMes(mesAnterior(mes))})` }] : []),
-            { value: 'sempre', label: 'Sem fim (repetir sempre)' },
-          ],
-        },
-      ],
-    })
-    if (!v?.opcao) return
-    const ate = v.opcao === 'ultima' ? `${mes}-01` : v.opcao === 'antes' ? `${mesAnterior(mes)}-01` : null
-    try {
-      await api(`/api/transaction/${origem}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recorrente_ate: ate }),
-      })
-      await carregarTx()
-    } catch (e) {
-      setErro((e as Error).message)
-    }
-  }
-
   async function excluir(t: Transaction) {
     try {
-      // Repetição automática não existe no banco: "excluir" = parar de repetir
-      // a partir deste mês (os meses anteriores continuam).
-      if (t.virtual && t.origem_id) {
-        const mes = t.data.slice(0, 7)
-        if (
-          !confirm(
-            `Esta é uma repetição automática de "${t.descricao || 'lançamento fixo'}".\n\nParar de repetir a partir de ${rotuloMes(mes)}? (a última fica sendo ${rotuloMes(mesAnterior(mes))})`,
-          )
-        )
-          return
-        await api(`/api/transaction/${t.origem_id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ recorrente_ate: `${mesAnterior(mes)}-01` }),
-        })
-        await carregarTx()
-        return
-      }
-      if (t.repete && !confirm('Este lançamento se repete todo mês. Excluir ele e TODAS as repetições?')) return
       // Parcela faz parte de uma compra: excluir apaga a compra inteira.
       if (t.parcela_grupo && t.parcela_total) {
         const todas = confirm(
@@ -342,7 +333,10 @@ export default function FluxoClient() {
         await carregarTx()
         return
       }
-      if (!t.repete && !confirm('Excluir este lançamento?')) return
+      const msg = t.recorrencia_id
+        ? 'Excluir este lançamento? A recorrência continua e o mês volta a aparecer como "a confirmar".'
+        : 'Excluir este lançamento?'
+      if (!confirm(msg)) return
       await api(`/api/transaction/${t.id}`, { method: 'DELETE' })
       await carregarTx()
     } catch (e) {
@@ -391,15 +385,11 @@ export default function FluxoClient() {
     }
   }
 
-  const nomeCategoria = (id: string | null) =>
-    categories.find((c) => c.id === id)?.name ?? null
+  const nomeDaCategoria = (id: string | null | undefined) => nomeCategoria(plano, id)
   const nomeConta = (id: string | null) =>
     accounts.find((a) => a.id === id)?.name ?? '—'
 
-  const categoriasDoTipo = useMemo(
-    () => categories.filter((c) => c.tipo === f.tipo),
-    [categories, f.tipo],
-  )
+  const aConfirmar = previstos.filter((p) => !p.confirmada && (!fTipo || p.recorrencia.tipo === fTipo))
 
   // Preview das parcelas (mesmíssimo cálculo que o back vai usar).
   const previewParcelas = useMemo(() => {
@@ -420,8 +410,8 @@ export default function FluxoClient() {
 
   return (
     <PageLayout
-      title="Fluxo de Caixa"
-      description="Entradas e saídas do seu dinheiro"
+      title="Lançamentos"
+      description="Entradas e saídas do mês, com as recorrências a confirmar"
       icon={Wallet}
       actions={
         <>
@@ -510,6 +500,58 @@ export default function FluxoClient() {
       )}
 
       {/* Lista */}
+      {/* Recorrências do mês ainda não confirmadas */}
+      {aConfirmar.length > 0 && (
+        <Card className="mb-5 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/40 px-4 py-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <CalendarClock className="h-4 w-4 text-primary" />
+              A confirmar em {rotuloMes(fMes)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {(() => {
+                const soma = (t: 'entrada' | 'saida') =>
+                  aConfirmar
+                    .filter((p) => p.recorrencia.tipo === t)
+                    .reduce((s, p) => s + valorEmBRL(p.valor, p.recorrencia.moeda, rates), 0)
+                return `Entradas ${formatBRL(soma('entrada'))} · Saídas ${formatBRL(soma('saida'))}`
+              })()}
+            </div>
+          </div>
+          <ul className="divide-y divide-border">
+            {aConfirmar.map((p) => (
+              <li key={p.recorrencia.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${p.recorrencia.tipo === 'entrada' ? 'bg-emerald-50 text-emerald-700' : 'bg-destructive/10 text-destructive'}`}
+                >
+                  {p.recorrencia.tipo === 'entrada' ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{p.recorrencia.descricao}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatData(p.data)} · {nomeDaCategoria(p.recorrencia.item_id) ?? 'sem categoria'}
+                  </div>
+                </div>
+                <div className="text-right font-semibold tabular-nums">
+                  {formatMoeda(p.valor, p.recorrencia.moeda)}
+                </div>
+                <div className="flex w-full justify-end gap-1.5 sm:w-auto">
+                  <Button size="sm" variant="ghost" onClick={() => pularPrevisto(p)} title="Não acontece este mês">
+                    <SkipForward /> Pular
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => confirmarPrevisto(p, true)} title="Confirmar com outro valor ou dia">
+                    <Pencil /> Ajustar
+                  </Button>
+                  <Button size="sm" onClick={() => confirmarPrevisto(p)}>
+                    <Check /> {p.recorrencia.tipo === 'entrada' ? 'Recebido' : 'Pago'}
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {txs.length === 0 ? (
         <EmptyState
           icon={Receipt}
@@ -560,18 +602,13 @@ export default function FluxoClient() {
                   <td className="px-4 py-3">
                     <div className="font-medium">{t.descricao || '—'}</div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      {nomeCategoria(t.category_id) ?? 'sem categoria'}
-                      {t.virtual ? (
-                        <Badge variant="secondary" title="Repetição automática do lançamento fixo">
-                          <Repeat className="h-3 w-3" /> repetição
+                      {nomeDaCategoria(t.item_id) ?? (
+                        <span className="text-amber-600">sem categoria</span>
+                      )}
+                      {t.recorrencia_id && (
+                        <Badge variant="secondary" title="Lançamento de uma recorrência">
+                          <Repeat className="h-3 w-3" /> recorrência
                         </Badge>
-                      ) : t.repete ? (
-                        <Badge variant="secondary" title="Se repete todo mês">
-                          <Repeat className="h-3 w-3" />
-                          {t.recorrente_ate ? `até ${rotuloMes(t.recorrente_ate.slice(0, 7))}` : 'todo mês'}
-                        </Badge>
-                      ) : (
-                        t.recorrente && <Badge variant="secondary">fixo</Badge>
                       )}
                       {t.parcela_total && (
                         <Badge variant="secondary">
@@ -607,18 +644,6 @@ export default function FluxoClient() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
-                      {(t.repete || t.virtual) && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-amber-600"
-                          onClick={() => encerrarRepeticao(t)}
-                          aria-label="Encerrar repetição"
-                          title="Encerrar / marcar a última"
-                        >
-                          <CalendarX2 className="h-4 w-4" />
-                        </Button>
-                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -662,22 +687,24 @@ export default function FluxoClient() {
               type="button"
               onClick={() => {
                 set('tipo', 'saida')
-                set('category_id', '')
+                set('item_id', '')
               }}
               className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${f.tipo === 'saida' ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'}`}
             >
-              ↓ Saída
+              <ArrowDownRight className="mr-1 inline h-4 w-4" />
+              Saída
             </button>
             <button
               type="button"
               onClick={() => {
                 set('tipo', 'entrada')
-                set('category_id', '')
+                set('item_id', '')
                 set('parcelado', false)
               }}
               className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${f.tipo === 'entrada' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'}`}
             >
-              ↑ Entrada
+              <ArrowUpRight className="mr-1 inline h-4 w-4" />
+              Entrada
             </button>
           </div>
 
@@ -735,17 +762,7 @@ export default function FluxoClient() {
             <div className="space-y-1.5">
               <Label>Categoria</Label>
               <div className="flex gap-1">
-                <Select
-                  value={f.category_id}
-                  onChange={(e) => set('category_id', e.target.value)}
-                >
-                  <option value="">(sem categoria)</option>
-                  {categoriasDoTipo.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
+                <CategoriaSelect plano={plano} tipo={f.tipo} value={f.item_id} onChange={(v) => set('item_id', v)} />
                 <Button type="button" variant="outline" size="icon" onClick={criarCategoria} aria-label="Nova categoria" title="Nova categoria">
                   <Plus />
                 </Button>
@@ -806,7 +823,7 @@ export default function FluxoClient() {
                     <p className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
                       {previewParcelas.n}x de{' '}
                       <strong className="text-foreground">{formatBRL(previewParcelas.valor)}</strong> ·{' '}
-                      {previewParcelas.primeira} → {previewParcelas.ultima}
+                      de {previewParcelas.primeira} a {previewParcelas.ultima}
                     </p>
                   )}
                 </div>
@@ -814,49 +831,24 @@ export default function FluxoClient() {
             </div>
           )}
 
-          {!f.parcelado && (
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          {!f.parcelado && !editId && (
+            <label className="flex items-start gap-2 rounded-xl border border-border bg-muted/30 p-3 text-sm">
               <input
                 type="checkbox"
-                checked={f.recorrente}
-                onChange={(e) => set('recorrente', e.target.checked)}
-                className="h-4 w-4 rounded border-input accent-primary"
+                checked={f.repetir}
+                onChange={(e) => set('repetir', e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
               />
-              Gasto fixo / recorrente
+              <span>
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Repeat className="h-4 w-4 text-primary" /> Repetir todo mês
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Cria uma recorrência. Os próximos meses aparecem como “a confirmar”, e dá pra pausar ou
+                  finalizar em Recorrências.
+                </span>
+              </span>
             </label>
-          )}
-
-          {!f.parcelado && f.recorrente && (
-            <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={f.repete}
-                  onChange={(e) => set('repete', e.target.checked)}
-                  className="h-4 w-4 rounded border-input accent-primary"
-                />
-                <Repeat className="h-4 w-4 text-primary" /> Repetir todo mês automaticamente
-              </label>
-              {f.repete && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="recorrente_ate" className="text-xs text-muted-foreground">
-                    Última vez em (opcional, vazio = sem fim)
-                  </Label>
-                  <Input
-                    id="recorrente_ate"
-                    type="month"
-                    min={f.data.slice(0, 7)}
-                    value={f.recorrente_ate}
-                    onChange={(e) => set('recorrente_ate', e.target.value)}
-                  />
-                  {editId && (
-                    <p className="text-xs text-muted-foreground">
-                      Alterações valem pra todos os meses em que ele se repete.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
           )}
 
           {erro && <p className="text-sm text-destructive">{erro}</p>}

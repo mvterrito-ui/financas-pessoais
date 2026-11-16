@@ -1,15 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buscarTudo, makeRepo } from '@/server/fluxo/crud'
+import { buscarTudo, makeRepo, ok } from '@/server/fluxo/crud'
 
 // O repo NUNCA filtra por tenant: o supabase traz a sessão e o RLS isola.
 export const grupoRepo = makeRepo('annual_group')
 export const categoriaRepo = makeRepo('annual_category')
 export const itemRepo = makeRepo('annual_item')
 
-function ok<T>({ data, error }: { data: T | null; error: { message: string } | null }): T {
-  if (error) throw new Error(error.message)
-  return data as T
-}
 
 const ativosEmOrdem = (sb: SupabaseClient, tabela: string) =>
   sb
@@ -35,21 +31,14 @@ export const estruturaRepo = {
   },
 }
 
-// Lançamentos do Fluxo do ano (só o necessário pra somar) + as ligações.
-export const fluxoRepo = {
-  async categoriasLigadas(sb: SupabaseClient) {
-    return ok(await sb.from('category').select('id, annual_item_id').not('annual_item_id', 'is', null)) as {
-      id: string
-      annual_item_id: string
-    }[]
-  },
-
-  async lancamentosDoAno(sb: SupabaseClient, ano: number) {
-    return buscarTudo<{ category_id: string | null; data: string; valor: number | string; moeda: string | null }>(
+// Lançamentos do ano (só o necessário pra somar por categoria do plano).
+export const lancamentoRepo = {
+  async doAno(sb: SupabaseClient, ano: number) {
+    return buscarTudo<{ item_id: string | null; data: string; valor: number | string; moeda: string | null }>(
       (de, ate) =>
         sb
           .from('transaction')
-          .select('category_id, data, valor, moeda')
+          .select('item_id, data, valor, moeda')
           .eq('ativo', true)
           .gte('data', `${ano}-01-01`)
           .lte('data', `${ano}-12-31`)

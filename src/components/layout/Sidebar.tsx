@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Wallet,
-  PieChart,
   TrendingUp,
   Bitcoin,
   Building2,
@@ -19,6 +18,7 @@ import {
   LogOut,
   Pencil,
   type LucideIcon,
+  Repeat,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
@@ -49,8 +49,8 @@ const secoes: Secao[] = [
   {
     titulo: 'Caixa',
     itens: [
-      { to: '/fluxo', label: 'Fluxo de Caixa', icon: Wallet },
-      { to: '/orcamento', label: 'Orçamento', icon: PieChart },
+      { to: '/fluxo', label: 'Lançamentos', icon: Wallet },
+      { to: '/recorrencias', label: 'Recorrências', icon: Repeat },
       { to: '/anual', label: 'Controle Anual', icon: CalendarRange },
       { to: '/relatorios', label: 'Relatórios', icon: BarChart3 },
     ],

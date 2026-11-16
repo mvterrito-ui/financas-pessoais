@@ -212,7 +212,7 @@ export function GraficosAnual({
 
       {/* Itens de um grupo */}
       <Card className="p-4">
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Maiores itens do grupo</h2>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Maiores categorias do grupo</h2>
         {comValor.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-1.5">
             {comValor.map((g) => (

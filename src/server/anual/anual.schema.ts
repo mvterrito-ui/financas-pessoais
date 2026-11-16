@@ -9,6 +9,8 @@ export const grupoCreateSchema = z.object({
   name: nome,
   tipo: z.enum(['receita', 'investimento', 'despesa']),
   descricao: z.string().trim().max(200).nullable().optional(),
+  // Meta em % da receita (substitui os "baldes" do antigo Orçamento).
+  meta_pct: z.number().min(0).max(100).nullable().optional(),
   ordem: z.number().int().optional().default(0),
 })
 export const grupoUpdateSchema = parcial(grupoCreateSchema)

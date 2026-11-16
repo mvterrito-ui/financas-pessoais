@@ -14,6 +14,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { invalidarSincronizacao } from '@/lib/sincronizar'
+import { useCotacao } from '@/lib/useRates'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -44,7 +45,7 @@ export default function CriptoClient() {
   const ask = usePromptDialog()
   const [itens, setItens] = useState<CryptoSummary[]>([])
   const [ano, setAno] = useState(ANO_ATUAL)
-  const [usd, setUsd] = useState(5.4)
+  const usd = useCotacao().rates.USD
   const [erro, setErro] = useState<string | null>(null)
 
   // detalhe (destrinchar) de uma corretora
@@ -79,12 +80,6 @@ export default function CriptoClient() {
     carregar()
   }, [carregar])
 
-  useEffect(() => {
-    fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL')
-      .then((r) => r.json())
-      .then((d) => setUsd(Number(d.USDBRL.bid)))
-      .catch(() => {})
-  }, [])
 
   // anos com dados; se vazio, oferece o atual. Garante que `ano` é válido.
   const anos = useMemo(() => {

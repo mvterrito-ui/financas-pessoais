@@ -10,28 +10,28 @@ const transactionBase = z.object({
   moeda: z.enum(['BRL', 'USD', 'EUR']).optional().default('BRL'),
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use o formato AAAA-MM-DD'),
   descricao: z.string().trim().max(200).optional().nullable(),
-  recorrente: z.boolean().optional().default(false),
-  // Repetir todo mês automaticamente (a partir da data) e até quando.
-  repete: z.boolean().optional().default(false),
-  // Último mês em que acontece (AAAA-MM-01); null/ausente = todo mês.
-  recorrente_ate: z
-    .string()
-    .regex(/^\d{4}-(0[1-9]|1[0-2])-01$/, 'Use o formato AAAA-MM-01')
-    .nullable()
-    .optional(),
   // nº de parcelas (>= 2). Ausente/1 = compra à vista. 'valor' é sempre o TOTAL.
   parcelas: z.number().int().min(2).max(72).optional(),
-  category_id: z.string().uuid().optional().nullable(),
+  // Categoria do plano de contas (a mesma do Controle Anual).
+  item_id: z.string().uuid().optional().nullable(),
   account_id: z.string().uuid().optional().nullable(),
 })
 
 // O que a API ACEITA receber pra criar um lançamento. Se vier diferente -> 400.
 export const transactionCreateSchema = transactionBase
+  .extend({
+    // "Repetir todo mês": cria também a recorrência (este lançamento vira o 1º mês).
+    repetir: z.boolean().optional(),
+  })
   .refine(
     // Parcelar só faz sentido em saída (gasto). Entrada parcelada não existe aqui.
     (d) => !d.parcelas || d.tipo === 'saida',
     { message: 'Só dá pra parcelar uma saída', path: ['parcelas'] },
   )
+  .refine((d) => !(d.repetir && d.parcelas), {
+    message: 'Compra parcelada não pode ser recorrência',
+    path: ['repetir'],
+  })
   .refine((d) => !d.parcelas || d.valor / d.parcelas >= 0.01, {
     message: 'Valor pequeno demais pra esse número de parcelas',
     path: ['parcelas'],

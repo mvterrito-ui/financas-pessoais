@@ -41,12 +41,12 @@ import {
   variacaoPct,
   type Moeda,
   type Origem,
-  type Rates,
   type WealthPlace,
   type WealthSnapshot,
 } from '@/server/patrimonio/patrimonio.calc'
 import { LinhaBem, type StatusSalvar } from './LinhaBem'
 import { sincronizarPatrimonio } from '@/lib/sincronizar'
+import { useCotacao } from '@/lib/useRates'
 
 // Ícone de cada investimento automático (a lista ORIGENS fica no servidor, sem UI).
 const ICONE_ORIGEM: Record<Origem, LucideIcon> = {
@@ -57,7 +57,6 @@ const ICONE_ORIGEM: Record<Origem, LucideIcon> = {
   consorcio: Handshake,
 }
 
-const FALLBACK: Rates = { USD: 5.4, EUR: 5.9 }
 
 function fmtMoeda(v: number, moeda: Moeda) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: moeda })
@@ -70,8 +69,7 @@ export default function PatrimonioClient() {
   const [snaps, setSnaps] = useState<WealthSnapshot[]>([])
   const [mes, setMes] = useState(mesAtualBR().slice(0, 7)) // horário de Brasília
   const [valores, setValores] = useState<Record<string, string>>({})
-  const [rates, setRates] = useState<Rates>(FALLBACK)
-  const [rateAoVivo, setRateAoVivo] = useState(false)
+  const { rates, aoVivo: rateAoVivo } = useCotacao()
   const [erro, setErro] = useState<string | null>(null)
   const [status, setStatus] = useState<Record<string, StatusSalvar>>({})
 
@@ -110,16 +108,6 @@ export default function PatrimonioClient() {
       .catch((e) => setErro(`Não deu pra atualizar os investimentos: ${(e as Error).message}`))
   }, [carregar])
 
-  // Cotação ao vivo (USD-BRL e EUR-BRL). Se falhar, usa o fallback.
-  useEffect(() => {
-    fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL')
-      .then((r) => r.json())
-      .then((d) => {
-        setRates({ USD: Number(d.USDBRL.bid), EUR: Number(d.EURBRL.bid) })
-        setRateAoVivo(true)
-      })
-      .catch(() => setRateAoVivo(false))
-  }, [])
 
   const mesData = `${mes}-01`
   // Campos com digitação ainda NÃO salva. Quando os dados recarregam (outra
@@ -396,7 +384,7 @@ export default function PatrimonioClient() {
           accent={variacao === null ? 'default' : variacao >= 0 ? 'success' : 'destructive'}
           sub={
             totalAnteriorBRL
-              ? `${formatBRL(totalAnteriorBRL)} → ${formatBRL(totalBRL)}`
+              ? `Antes: ${formatBRL(totalAnteriorBRL)}`
               : 'Sem mês anterior pra comparar'
           }
         />

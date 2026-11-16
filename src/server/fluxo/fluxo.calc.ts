@@ -11,52 +11,17 @@ export type Transaction = {
   moeda?: Moeda // moeda do lançamento (default BRL)
   data: string
   descricao: string | null
-  recorrente: boolean
-  category_id: string | null
   account_id: string | null
   parcela_grupo: string | null // une as parcelas da mesma compra (null = à vista)
   parcela_num: number | null // qual parcela (1, 2, 3...)
   parcela_total: number | null // total de parcelas (ex: 12)
-  /** Se repete todo mês automaticamente (a partir da data dele). */
-  repete?: boolean
-  /** Último mês (AAAA-MM-01) em que a repetição acontece; null = sempre. */
-  recorrente_ate?: string | null
-  /** Repetição automática de um recorrente (não existe no banco). */
-  virtual?: boolean
-  /** Na repetição: id do lançamento recorrente original. */
-  origem_id?: string
+  /** Categoria do plano de contas. */
+  item_id?: string | null
+  /** Lançamento que confirmou uma recorrência (e de qual mês). */
+  recorrencia_id?: string | null
+  competencia?: string | null
 }
 
-const ym = (d: string) => d.slice(0, 7)
-const proximoMes = (m: string) => {
-  const [a, mm] = m.split('-').map(Number)
-  return mm === 12 ? `${a + 1}-01` : `${a}-${String(mm + 1).padStart(2, '0')}`
-}
-const ultimoDia = (m: string) => {
-  const [a, mm] = m.split('-').map(Number)
-  return new Date(Date.UTC(a, mm, 0)).getUTCDate()
-}
-
-/**
- * Repetições automáticas dos lançamentos que SE REPETEM (repete) em [de, ate]
- * (datas AAAA-MM-DD). Cada recorrente se repete todo mês, no mesmo dia (ou no
- * último dia do mês, se não existir — dia 31 em fevereiro), a partir do mês
- * SEGUINTE ao dele, até recorrente_ate (inclusive) ou até `ate`.
- */
-export function repeticoesRecorrentes(modelos: Transaction[], de: string, ate: string): Transaction[] {
-  const out: Transaction[] = []
-  for (const t of modelos) {
-    if (!t.repete) continue
-    const fim = t.recorrente_ate && ym(t.recorrente_ate) < ym(ate) ? ym(t.recorrente_ate) : ym(ate)
-    const dia = Number(t.data.slice(8, 10))
-    for (let m = proximoMes(ym(t.data)); m <= fim; m = proximoMes(m)) {
-      const data = `${m}-${String(Math.min(dia, ultimoDia(m))).padStart(2, '0')}`
-      if (data < de || data > ate) continue
-      out.push({ ...t, id: `${t.id}@${m}`, data, virtual: true, origem_id: t.id, parcela_grupo: null })
-    }
-  }
-  return out
-}
 
 // Cotações ao vivo em relação ao real (BRL sempre = 1).
 export type Rates = { USD: number; EUR: number }
@@ -82,11 +47,6 @@ export type Account = {
   moeda: 'BRL' | 'USD' | 'EUR' | 'BTC'
 }
 
-export type Category = {
-  id: string
-  name: string
-  tipo: 'entrada' | 'saida'
-}
 
 export function totalEntradas(txs: Transaction[], rates?: Rates): number {
   return txs
@@ -111,14 +71,16 @@ export type CategoriaResumo = {
   pct: number // fatia do total daquele tipo (0-100)
 }
 
-// Agrupa os lançamentos de um tipo (entrada/saida) por categoria, com o total
-// e a fatia (%) de cada uma. Ordena do maior pro menor. Lançamentos sem
-// categoria caem num grupo "Sem categoria".
+// Agrupa os lançamentos de um tipo (entrada/saida) pela chave escolhida
+// (categoria do plano, por padrão), com o total e a fatia (%) de cada uma.
+// Ordena do maior pro menor. Sem chave cai em `rotuloVazio`.
 export function porCategoria(
   txs: Transaction[],
-  categories: Category[],
+  categories: { id: string; name: string }[],
   tipo: 'entrada' | 'saida',
   rates?: Rates,
+  chave: (t: Transaction) => string | null = (t) => t.item_id ?? null,
+  rotuloVazio = 'Sem categoria',
 ): CategoriaResumo[] {
   const doTipo = txs.filter((t) => t.tipo === tipo)
   const total = doTipo.reduce((s, t) => s + valorEmBRL(t.valor, t.moeda, rates), 0)
@@ -126,14 +88,14 @@ export function porCategoria(
 
   const porId = new Map<string | null, number>()
   for (const t of doTipo) {
-    const k = t.category_id ?? null
+    const k = chave(t)
     porId.set(k, (porId.get(k) ?? 0) + valorEmBRL(t.valor, t.moeda, rates))
   }
 
   return [...porId.entries()]
     .map(([id, soma]) => ({
       id,
-      name: id ? nome.get(id) ?? 'Sem categoria' : 'Sem categoria',
+      name: id ? (nome.get(id) ?? rotuloVazio) : rotuloVazio,
       total: soma,
       pct: total > 0 ? (soma / total) * 100 : 0,
     }))

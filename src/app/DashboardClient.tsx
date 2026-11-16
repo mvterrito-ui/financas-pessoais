@@ -10,49 +10,48 @@ import {
   ArrowDownRight,
   Scale,
   TrendingUp,
-  TrendingDown,
   Building2,
   CandlestickChart,
   Bitcoin,
   Landmark,
-  PieChart,
   ArrowLeftRight,
+  Target,
+  Repeat,
 } from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
 import { Card } from '@/components/ui/card'
 import { MonthPicker } from '@/components/ui/month-picker'
 import { Label } from '@/components/ui/label'
-import { hojeISO, fimDoMes, rotuloMes, mesAnterior } from '@/lib/utils'
+import { hojeISO, fimDoMes, rotuloMes } from '@/lib/utils'
 import {
   formatBRL,
   saldo,
   totalEntradas,
   totalSaidas,
+  valorEmBRL,
   type Transaction,
 } from '@/server/fluxo/fluxo.calc'
 import {
-  emBRL,
   evolucaoBRL,
   variacaoPct,
   type Moeda,
-  type Rates,
   type WealthPlace,
   type WealthSnapshot,
 } from '@/server/patrimonio/patrimonio.calc'
 import { totais as fiiTotais, type Fii, type Quotes } from '@/server/fii/fii.calc'
 import { totais as rfTotais, type FixedIncome } from '@/server/renda-fixa/renda-fixa.calc'
 import { totais as cryptoTotais, type CryptoSummary } from '@/server/cripto/cripto.calc'
-import { alocar, type BudgetBucket } from '@/server/orcamento/orcamento.calc'
+import { metaFora, pctDaReceita, textoMeta, type Grupo, type Item } from '@/server/anual/anual.calc'
 import { sincronizarPatrimonio } from '@/lib/sincronizar'
+import { useCotacao } from '@/lib/useRates'
 
-const FALLBACK: Rates = { USD: 5.4, EUR: 5.9 }
 const ANO_ATUAL = Number(hojeISO().slice(0, 4))
 
 export default function DashboardClient() {
   const router = useRouter()
   const [mes, setMes] = useState(hojeISO().slice(0, 7))
-  const [rates, setRates] = useState<Rates>(FALLBACK)
+  const { rates } = useCotacao()
 
   const [txs, setTxs] = useState<Transaction[]>([])
   const [places, setPlaces] = useState<WealthPlace[]>([])
@@ -63,7 +62,7 @@ export default function DashboardClient() {
   const [acaoQuotes, setAcaoQuotes] = useState<Quotes>({})
   const [rendaFixa, setRendaFixa] = useState<FixedIncome[]>([])
   const [cryptos, setCryptos] = useState<CryptoSummary[]>([])
-  const [buckets, setBuckets] = useState<BudgetBucket[]>([])
+  const [plano, setPlano] = useState<{ grupos: Grupo[]; itens: Item[] }>({ grupos: [], itens: [] })
 
   const api = useCallback(
     async (url: string) => {
@@ -91,7 +90,7 @@ export default function DashboardClient() {
       api('/api/snapshot'),
       api('/api/fii'),
       api('/api/crypto'),
-      api('/api/budget'),
+      api('/api/anual/estrutura'),
       api('/api/fixed-income'),
       api('/api/acao'),
     ]).then(([p, s, f, c, b, rf, ac]) => {
@@ -99,7 +98,7 @@ export default function DashboardClient() {
       setSnaps(s)
       setFiis(f)
       setCryptos(c)
-      setBuckets(b)
+      setPlano(b)
       setRendaFixa(rf)
       setAcoes(ac)
     }).catch(falhou)
@@ -111,10 +110,6 @@ export default function DashboardClient() {
           setSnaps(s)
         })
       })
-      .catch(() => {})
-    fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL')
-      .then((r) => r.json())
-      .then((d) => setRates({ USD: Number(d.USDBRL.bid), EUR: Number(d.EURBRL.bid) }))
       .catch(() => {})
   }, [api, falhou])
 
@@ -166,8 +161,19 @@ export default function DashboardClient() {
   const cryptoAno = cryptos.filter((c) => c.ano === ANO_ATUAL)
   const cy = cryptoTotais(cryptoAno)
 
-  const rendaMes = entradas
-  const alocacoes = alocar(rendaMes, buckets)
+  // Metas do mês: quanto cada grupo do plano levou da receita do mês.
+  const grupoDoItem = new Map(plano.itens.map((i) => [i.id, i.group_id]))
+  const metas = plano.grupos
+    .filter((g) => g.tipo !== 'receita')
+    .map((g) => {
+      const valor = txs
+        .filter((t) => t.item_id && grupoDoItem.get(t.item_id) === g.id)
+        .reduce((s, t) => s + valorEmBRL(t.valor, t.moeda, rates), 0)
+      const pct = pctDaReceita(valor, entradas)
+      const meta = g.meta_pct == null ? null : Number(g.meta_pct)
+      return { g, valor, pct, meta, fora: metaFora(g.tipo, pct, meta) }
+    })
+    .filter((m) => m.valor > 0 || m.meta !== null)
 
   return (
     <PageLayout
@@ -190,7 +196,7 @@ export default function DashboardClient() {
           sub={
             patVar === null
               ? 'Sem mês anterior pra comparar'
-              : `${patVar >= 0 ? '▲' : '▼'} ${Math.abs(patVar).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% vs mês anterior`
+              : `${patVar >= 0 ? 'Subiu' : 'Caiu'} ${Math.abs(patVar).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% vs mês anterior`
           }
         />
         <StatCard
@@ -223,7 +229,7 @@ export default function DashboardClient() {
         />
       </div>
 
-      {/* Mês de referência (Fluxo + Orçamento) */}
+      {/* Mês de referência (lançamentos e metas) */}
       <div className="mb-3 flex flex-wrap items-end gap-3">
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Mês de referência</Label>
@@ -279,32 +285,47 @@ export default function DashboardClient() {
           )}
         </Card>
 
-        {/* Alocação da renda (orçamento) */}
+        {/* Metas do mês por grupo do plano */}
         <Card className="p-4">
           <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <PieChart className="h-4 w-4" /> Divisão da renda de {rotuloMes(mes)}
+            <Target className="h-4 w-4" /> Metas de {rotuloMes(mes)} (% da receita)
           </div>
-          {rendaMes === 0 || buckets.length === 0 ? (
+          {entradas === 0 || metas.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              Sem renda lançada nesse mês (ou sem baldes).
+              {entradas === 0
+                ? 'Sem receita lançada nesse mês.'
+                : 'Defina metas nos grupos do Controle Anual (editar grupo).'}
             </p>
           ) : (
-            <div className="space-y-2">
-              {alocacoes.map((b) => (
-                <div key={b.id} className="flex items-center gap-3 text-sm">
-                  <span className="w-24 shrink-0 truncate">{b.name}</span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${b.percentual}%` }} />
+            <ul className="space-y-3">
+              {metas.map(({ g, valor, pct, meta, fora }) => (
+                <li key={g.id} className="text-sm">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="truncate">{g.name}</span>
+                    <span className="shrink-0 tabular-nums">
+                      <span className={fora ? 'font-semibold text-destructive' : 'font-medium'}>
+                        {pct === null ? '—' : `${pct.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
+                      </span>
+                      <span className="text-muted-foreground"> · {formatBRL(valor)}</span>
+                    </span>
                   </div>
-                  <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
-                    {Number(b.percentual)}%
-                  </span>
-                  <span className="w-24 shrink-0 text-right font-medium tabular-nums">
-                    {formatBRL(b.valor)}
-                  </span>
-                </div>
+                  <div className="relative h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full rounded-full ${fora ? 'bg-destructive' : 'bg-primary'}`}
+                      style={{ width: `${Math.min(100, pct ?? 0)}%` }}
+                    />
+                    {meta !== null && (
+                      <div
+                        className="absolute top-0 h-full w-0.5 bg-foreground/60"
+                        style={{ left: `${Math.min(100, meta)}%` }}
+                        title={`Meta: ${textoMeta(g.tipo, meta)}`}
+                      />
+                    )}
+                  </div>
+                  {meta !== null && <div className="mt-0.5 text-[11px] text-muted-foreground">Meta: {textoMeta(g.tipo, meta)}</div>}
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </Card>
       </div>
@@ -312,8 +333,8 @@ export default function DashboardClient() {
       {/* Atalhos */}
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-6">
         {[
-          { to: '/fluxo', label: 'Fluxo', icon: Wallet },
-          { to: '/orcamento', label: 'Orçamento', icon: PieChart },
+          { to: '/fluxo', label: 'Lançamentos', icon: Wallet },
+          { to: '/recorrencias', label: 'Recorrências', icon: Repeat },
           { to: '/patrimonio', label: 'Patrimônio', icon: TrendingUp },
           { to: '/acoes', label: 'Ações', icon: CandlestickChart },
           { to: '/fii', label: 'FIIs', icon: Building2 },

@@ -12,6 +12,7 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import { PageLayout } from '@/components/layout/PageLayout'
+import { useCotacao } from '@/lib/useRates'
 import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Card } from '@/components/ui/card'
@@ -24,7 +25,6 @@ import {
   emBRL,
   evolucaoBRL,
   type Moeda,
-  type Rates,
   type WealthPlace,
   type WealthSnapshot,
 } from '@/server/patrimonio/patrimonio.calc'
@@ -34,14 +34,13 @@ import {
   projetar,
 } from '@/server/patrimonio/projecao.calc'
 
-const FALLBACK: Rates = { USD: 5.4, EUR: 5.9 }
 const HORIZONTES = [1, 3, 5, 10, 15, 20] as const
 
 export default function ProjecaoClient() {
   const router = useRouter()
   const [places, setPlaces] = useState<WealthPlace[]>([])
   const [snaps, setSnaps] = useState<WealthSnapshot[]>([])
-  const [rates, setRates] = useState<Rates>(FALLBACK)
+  const { rates } = useCotacao()
   const [erro, setErro] = useState<string | null>(null)
 
   // controles
@@ -75,13 +74,6 @@ export default function ProjecaoClient() {
       .catch((e) => setErro((e as Error).message))
   }, [api])
 
-  // Cotação ao vivo (pra converter lugares em USD/EUR). Falhou? usa fallback.
-  useEffect(() => {
-    fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL')
-      .then((r) => r.json())
-      .then((d) => setRates({ USD: Number(d.USDBRL.bid), EUR: Number(d.EURBRL.bid) }))
-      .catch(() => {})
-  }, [])
 
   const moedaDoLugar = useMemo(
     () => Object.fromEntries(places.map((p) => [p.id, p.moeda])) as Record<string, Moeda>,

@@ -1,4 +1,10 @@
-// Cálculos PUROS do Controle Anual — rodam igual no back e no front.
+// Cálculos PUROS do Controle Anual (plano de contas), no back e no front.
+//
+// Nomes no código x na tela:
+//   Grupo     = grupo      (annual_group: Receitas, Despesas fixas...)
+//   Categoria = SUBGRUPO   (annual_category, opcional: Moradia, Transporte...)
+//   Item      = CATEGORIA  (annual_item: Aluguel, Mercado... é o item_id
+//                           usado por lançamentos e recorrências)
 
 export type TipoGrupo = 'receita' | 'investimento' | 'despesa'
 
@@ -8,6 +14,8 @@ export type Grupo = {
   tipo: TipoGrupo
   descricao: string | null
   ordem: number
+  /** Meta em % da receita (despesa: até; investimento: pelo menos). */
+  meta_pct?: number | string | null
 }
 export type Categoria = { id: string; group_id: string; name: string; ordem: number }
 export type Item = {
@@ -102,26 +110,48 @@ export function resumo(grupos: Grupo[], itens: Item[], valores: Valores, ano: nu
   return { meses, porGrupo, receita, investimento, despesa, saldo }
 }
 
-// ---- Ligação com o Fluxo de Caixa ---------------------------------------
-export type FluxoDoItem = { item_id: string; mes: string; moeda: string; valor: number | string }
+// ---- Realizado × planejado ---------------------------------------------
+export type SomaPorMes = { item_id: string; mes: string; moeda: string; valor: number | string }
 
-/**
- * Valores EFETIVOS da grade: item ligado ao Fluxo usa SÓ a soma dos
- * lançamentos (convertida pra real); o valor digitado nele fica guardado, mas
- * não conta enquanto estiver ligado. Itens não ligados ficam como estão.
- */
-export function aplicarFluxo(
-  valores: Valores,
-  fluxo: FluxoDoItem[],
-  ligados: Set<string>,
-  emReal: (valor: number, moeda: string) => number,
-): Valores {
+/** Soma (item, mês) em real a partir de linhas agregadas por moeda. */
+export function somarEmReal(linhas: SomaPorMes[], emReal: (valor: number, moeda: string) => number): Valores {
   const out = new Map<string, number>()
-  for (const [k, v] of valores) if (!ligados.has(k.split('|')[0])) out.set(k, v)
-  for (const f of fluxo) {
-    if (!ligados.has(f.item_id)) continue
-    const k = chave(f.item_id, f.mes)
-    out.set(k, (out.get(k) ?? 0) + emReal(Number(f.valor), f.moeda))
+  for (const l of linhas) {
+    const k = chave(l.item_id, l.mes)
+    out.set(k, (out.get(k) ?? 0) + emReal(Number(l.valor), l.moeda))
   }
   return out
 }
+
+/**
+ * Planejado de cada célula: o valor DIGITADO tem prioridade (meta manual);
+ * sem ele, vale o que as recorrências preveem pra aquela categoria e mês.
+ */
+export function planejado(manual: Valores, recorrente: Valores): Valores {
+  const out = new Map(recorrente)
+  for (const [k, v] of manual) out.set(k, v)
+  return out
+}
+
+/**
+ * Situação de realizado vs planejado. Pra despesa/investimento, gastar MAIS
+ * que o planejado é ruim; pra receita, receber MENOS é ruim.
+ */
+export function desvio(
+  tipo: TipoGrupo,
+  realizado: number | undefined,
+  plano: number | undefined,
+): { diferenca: number; ruim: boolean } | null {
+  if (plano === undefined || realizado === undefined) return null
+  const diferenca = realizado - plano
+  return { diferenca, ruim: tipo === 'receita' ? diferenca < 0 : diferenca > 0 }
+}
+
+/** Meta do grupo: despesa = "até X%" da receita; investimento = "pelo menos X%". */
+export function metaFora(tipo: TipoGrupo, pct: number | null, meta: number | null | undefined) {
+  if (pct === null || meta === null || meta === undefined || tipo === 'receita') return false
+  return tipo === 'despesa' ? pct > meta : pct < meta
+}
+
+export const textoMeta = (tipo: TipoGrupo, meta: number) =>
+  `${tipo === 'investimento' ? 'pelo menos' : 'até'} ${meta.toLocaleString('pt-BR')}% da receita`

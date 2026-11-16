@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   CalendarRange,
-  Link2,
+  CircleAlert,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -24,7 +24,8 @@ import { useCotacao } from '@/lib/useRates'
 import { mesAtualBR } from '@/server/patrimonio/patrimonio.calc'
 import {
   chave,
-  aplicarFluxo,
+  somarEmReal,
+  planejado,
   indexar,
   mesesDoAno,
   pctDaReceita,
@@ -37,12 +38,13 @@ import {
   type Item,
   type TipoGrupo,
   type ValorMes,
-  type FluxoDoItem,
+  type SomaPorMes,
   type Valores,
 } from '@/server/anual/anual.calc'
 import { OPCOES_TIPO } from './tipos'
-import { LigarFluxoDialog, tipoFluxoDoGrupo, type CategoriaFluxo } from './LigarFluxoDialog'
-import { GradeAnual } from './GradeAnual'
+import { GradeAnual, type ModoGrade } from './GradeAnual'
+import Link from 'next/link'
+import { cn } from '@/lib/utils'
 import { GraficosAnual } from './GraficosAnual'
 
 const fmtPct = (p: number | null) =>
@@ -120,105 +122,33 @@ export default function AnualClient() {
     }
   }, [api, ano])
 
-  // ---------------- Fluxo de Caixa -> Controle Anual
+  // ---------------- realizado (lançamentos) e recorrências do ano
   const { rates } = useCotacao()
-  const [catsFluxo, setCatsFluxo] = useState<CategoriaFluxo[]>([])
-  const [fluxo, setFluxo] = useState<{ porItem: FluxoDoItem[]; semLigacao: { moeda: string; valor: number; qtd: number }[] }>({
-    porItem: [],
-    semLigacao: [],
-  })
-  const [ligando, setLigando] = useState<Item | null>(null)
-  const buscarFluxo = useCallback(
-    () =>
-      Promise.all([
-        api('/api/category') as Promise<CategoriaFluxo[]>,
-        api(`/api/anual/fluxo?ano=${ano}`) as Promise<typeof fluxo>,
-      ]),
-    [api, ano],
-  )
-  const recarregarFluxo = useCallback(
-    () =>
-      buscarFluxo().then(([c, f]) => {
-        setCatsFluxo(c)
-        setFluxo(f)
-      }),
-    [buscarFluxo],
-  )
+  const [modo, setModo] = useState<ModoGrade>('comparar')
+  const [dadosAno, setDadosAno] = useState<{
+    realizado: SomaPorMes[]
+    previsto: SomaPorMes[]
+    semCategoria: { moeda: string; valor: number; qtd: number }[]
+  }>({ realizado: [], previsto: [], semCategoria: [] })
   useEffect(() => {
     let vivo = true
-    buscarFluxo()
-      .then(([c, f]) => {
-        if (!vivo) return
-        setCatsFluxo(c)
-        setFluxo(f)
-      })
+    api(`/api/anual/realizado?ano=${ano}`)
+      .then((f) => vivo && setDadosAno(f))
       .catch((e) => vivo && setErro((e as Error).message))
     return () => {
       vivo = false
     }
-  }, [buscarFluxo])
+  }, [api, ano])
 
-  // item -> nomes das categorias do Fluxo que o alimentam
-  const ligados = useMemo(() => {
-    const m = new Map<string, string[]>()
-    for (const c of catsFluxo) {
-      if (!c.annual_item_id) continue
-      m.set(c.annual_item_id, [...(m.get(c.annual_item_id) ?? []), c.name])
-    }
-    return m
-  }, [catsFluxo])
   const emReal = useCallback((v: number, m: string) => valorEmBRL(v, m as Moeda, rates), [rates])
-  // Valores que a tela usa: manuais + (itens ligados) soma do Fluxo em real.
-  const efetivos = useMemo(
-    () => aplicarFluxo(valores, fluxo.porItem, new Set(ligados.keys()), emReal),
-    [valores, fluxo.porItem, ligados, emReal],
-  )
-  const foraDoAnual = fluxo.semLigacao.reduce(
+  const realizado = useMemo(() => somarEmReal(dadosAno.realizado, emReal), [dadosAno.realizado, emReal])
+  const recorrente = useMemo(() => somarEmReal(dadosAno.previsto, emReal), [dadosAno.previsto, emReal])
+  // Planejado: o digitado na célula; sem ele, o das recorrências.
+  const plano = useMemo(() => planejado(valores, recorrente), [valores, recorrente])
+  const semCategoria = dadosAno.semCategoria.reduce(
     (s, x) => ({ valor: s.valor + emReal(x.valor, x.moeda), qtd: s.qtd + x.qtd }),
     { valor: 0, qtd: 0 },
   )
-
-  async function salvarLigacao(item: Item, ligar: string[], desligar: string[]) {
-    await acao(
-      () =>
-        Promise.all([
-          ...ligar.map((id) => enviar(`/api/category/${id}`, 'PATCH', { annual_item_id: item.id })),
-          ...desligar.map((id) => enviar(`/api/category/${id}`, 'PATCH', { annual_item_id: null })),
-        ]),
-      recarregarFluxo,
-    )
-  }
-
-  // Cria um item pra cada categoria do Fluxo (do tipo certo) ainda sem ligação.
-  async function puxarDoFluxo(g: Grupo) {
-    const tipo = tipoFluxoDoGrupo(g.tipo)
-    const soltas = catsFluxo.filter((c) => c.tipo === tipo && !c.annual_item_id)
-    if (soltas.length === 0) {
-      setErro(
-        `Todas as categorias de ${tipo === 'entrada' ? 'entrada' : 'saída'} do Fluxo já estão ligadas (ou não há nenhuma).`,
-      )
-      return
-    }
-    if (
-      !confirm(
-        `Criar ${soltas.length} ${soltas.length === 1 ? 'item' : 'itens'} em "${g.name}" a partir das categorias do Fluxo?\n\n${soltas
-          .map((c) => `• ${c.name}`)
-          .join('\n')}\n\nOs valores passam a vir dos lançamentos do Fluxo.`,
-      )
-    )
-      return
-    let ordem = itens.filter((i) => i.group_id === g.id).length
-    await acao(
-      async () => {
-        for (const c of soltas) {
-          ordem += 1
-          const novo = (await enviar('/api/anual/item', 'POST', { group_id: g.id, name: c.name, ordem })) as Item
-          await enviar(`/api/category/${c.id}`, 'PATCH', { annual_item_id: novo.id })
-        }
-      },
-      () => Promise.all([carregarEstrutura(), recarregarFluxo()]),
-    )
-  }
 
   // Executa uma ação; em erro mostra a mensagem. `depois` recarrega o necessário.
   const acao = useCallback(async (fn: () => Promise<unknown>, depois?: () => Promise<unknown>) => {
@@ -286,6 +216,7 @@ export default function AnualClient() {
         { name: 'name', label: 'Nome', placeholder: 'Ex.: Despesas fixas' },
         { name: 'tipo', label: 'Tipo (define a conta do saldo)', type: 'select', options: OPCOES_TIPO },
         { name: 'descricao', label: 'Descrição (opcional)', placeholder: 'Ex.: todo mês, valor não muda' },
+        { name: 'meta_pct', label: 'Meta em % da receita (opcional)', type: 'number', sufixo: '%', placeholder: 'Ex.: 50' },
       ],
     })
     if (!v?.name) return
@@ -295,6 +226,7 @@ export default function AnualClient() {
           name: v.name,
           tipo: v.tipo as TipoGrupo,
           descricao: v.descricao || null,
+          meta_pct: v.meta_pct ? Math.min(100, Number(v.meta_pct)) : null,
           ordem: grupos.length + 1,
         }),
       carregarEstrutura,
@@ -309,6 +241,13 @@ export default function AnualClient() {
         { name: 'name', label: 'Nome', valor: g.name },
         { name: 'tipo', label: 'Tipo', type: 'select', options: OPCOES_TIPO, valor: g.tipo },
         { name: 'descricao', label: 'Descrição (opcional)', valor: g.descricao ?? '' },
+        {
+          name: 'meta_pct',
+          label: 'Meta em % da receita (despesa: até; investimento: pelo menos)',
+          type: 'number',
+          sufixo: '%',
+          valor: g.meta_pct != null ? String(g.meta_pct) : '',
+        },
       ],
     })
     if (!v?.name) return
@@ -318,20 +257,21 @@ export default function AnualClient() {
           name: v.name,
           tipo: v.tipo,
           descricao: v.descricao || null,
+          meta_pct: v.meta_pct ? Math.min(100, Number(v.meta_pct)) : null,
         }),
       carregarEstrutura,
     )
   }
 
   function removerGrupo(g: Grupo) {
-    if (!confirm(`Remover o grupo "${g.name}" com todos os itens dele? Os valores somem dos totais.`))
+    if (!confirm(`Remover o grupo "${g.name}" com todas as categorias dele? Lançamentos dessas categorias ficam sem categoria.`))
       return
     acao(() => enviar(`/api/anual/grupo/${g.id}`, 'DELETE'), carregarEstrutura)
   }
 
   async function novaCategoria(g: Grupo) {
     const v = await ask({
-      title: `Nova categoria em ${g.name}`,
+      title: `Novo subgrupo em ${g.name}`,
       fields: [{ name: 'name', label: 'Nome', placeholder: 'Ex.: Moradia, Transporte' }],
     })
     if (!v?.name) return
@@ -344,7 +284,7 @@ export default function AnualClient() {
 
   async function editarCategoria(c: Categoria) {
     const v = await ask({
-      title: 'Renomear categoria',
+      title: 'Renomear subgrupo',
       submitLabel: 'Salvar',
       fields: [{ name: 'name', label: 'Nome', valor: c.name }],
     })
@@ -353,26 +293,26 @@ export default function AnualClient() {
   }
 
   function removerCategoria(c: Categoria) {
-    if (!confirm(`Remover a categoria "${c.name}"? Os itens dela continuam, direto no grupo.`)) return
+    if (!confirm(`Remover o subgrupo "${c.name}"? As categorias dele continuam, direto no grupo.`)) return
     acao(() => enviar(`/api/anual/categoria/${c.id}`, 'DELETE'), carregarEstrutura)
   }
 
   const opcoesCategoria = (groupId: string) => [
-    { value: '', label: 'Sem categoria' },
+    { value: '', label: 'Sem subgrupo' },
     ...categorias.filter((c) => c.group_id === groupId).map((c) => ({ value: c.id, label: c.name })),
   ]
 
   async function novoItem(g: Grupo, categoriaId: string | null = null) {
     const temCategorias = categorias.some((c) => c.group_id === g.id)
     const v = await ask({
-      title: `Novo item em ${g.name}`,
+      title: `Nova categoria em ${g.name}`,
       fields: [
-        { name: 'name', label: 'Nome', placeholder: 'Ex.: Aluguel, Luz, Salário' },
+        { name: 'name', label: 'Nome da categoria', placeholder: 'Ex.: Aluguel, Luz, Salário' },
         ...(temCategorias
           ? [
               {
                 name: 'category_id',
-                label: 'Categoria',
+                label: 'Subgrupo',
                 type: 'select' as const,
                 options: opcoesCategoria(g.id),
                 valor: categoriaId ?? '',
@@ -398,7 +338,7 @@ export default function AnualClient() {
   async function editarItem(item: Item) {
     const temCategorias = categorias.some((c) => c.group_id === item.group_id)
     const v = await ask({
-      title: 'Editar item',
+      title: 'Editar categoria',
       submitLabel: 'Salvar',
       fields: [
         { name: 'name', label: 'Nome', valor: item.name },
@@ -406,7 +346,7 @@ export default function AnualClient() {
           ? [
               {
                 name: 'category_id',
-                label: 'Categoria',
+                label: 'Subgrupo',
                 type: 'select' as const,
                 options: opcoesCategoria(item.group_id),
                 valor: item.category_id ?? '',
@@ -440,7 +380,7 @@ export default function AnualClient() {
   function removerItem(item: Item) {
     if (
       !confirm(
-        `Remover "${item.name}" de vez?\n\nOs valores dele somem dos totais de TODOS os anos. Se só parou de usar, prefira Ocultar.`,
+        `Remover a categoria "${item.name}"?\n\nOs lançamentos dela ficam sem categoria e somem dos totais. Se só parou de usar, prefira Ocultar.`,
       )
     )
       return
@@ -448,17 +388,19 @@ export default function AnualClient() {
   }
 
   // ---------------- números do ano
-  const r = useMemo(() => resumo(grupos, itens, efetivos, ano), [grupos, itens, efetivos, ano])
-  const receitaAno = total(r.receita)
-  const despesaAno = total(r.despesa)
-  const investAno = total(r.investimento)
-  const saldoAno = total(r.saldo)
+  const rReal = useMemo(() => resumo(grupos, itens, realizado, ano), [grupos, itens, realizado, ano])
+  const rPlano = useMemo(() => resumo(grupos, itens, plano, ano), [grupos, itens, plano, ano])
+  const receitaAno = total(rReal.receita)
+  const despesaAno = total(rReal.despesa)
+  const investAno = total(rReal.investimento)
+  const saldoAno = total(rReal.saldo)
+  const planejadoDe = (s: (number | undefined)[]) => `Planejado ${formatBRL(total(s))}`
   const mesDestaque = ano === anoAtual ? Number(mesAtualBR().slice(5, 7)) - 1 : null
 
   return (
     <PageLayout
       title="Controle Anual"
-      description="Receitas, investimentos e despesas mês a mês"
+      description="Planejado e realizado do ano, por categoria"
       icon={CalendarRange}
       actions={
         <Button onClick={novoGrupo}>
@@ -490,7 +432,7 @@ export default function AnualClient() {
         <EmptyState
           icon={CalendarRange}
           titulo="Monte o seu controle anual"
-          descricao="Crie os grupos do seu jeito: um de receitas, um de investimentos e quantos de despesas quiser (fixas, variáveis, extras…). Depois adicione os itens e preencha os meses."
+          descricao="Este é o seu plano de contas. Crie os grupos do seu jeito: um de receitas, um de investimentos e quantos de despesas quiser (fixas, variáveis, extras…). Depois adicione as categorias. Lançamentos e recorrências usam este mesmo plano."
           acao={
             <Button onClick={novoGrupo}>
               <Plus /> Criar primeiro grupo
@@ -501,12 +443,12 @@ export default function AnualClient() {
         <>
           {/* Números do ano */}
           <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label={`Receita em ${ano}`} value={formatBRL(receitaAno)} icon={Wallet} />
+            <StatCard label={`Receita em ${ano}`} value={formatBRL(receitaAno)} icon={Wallet} sub={planejadoDe(rPlano.receita)} />
             <StatCard
               label={`Despesas em ${ano}`}
               value={formatBRL(despesaAno)}
               icon={Receipt}
-              sub={fmtPct(pctDaReceita(despesaAno, receitaAno))}
+              sub={`${fmtPct(pctDaReceita(despesaAno, receitaAno))} · ${planejadoDe(rPlano.despesa)}`}
             />
             <StatCard
               label={`Investido em ${ano}`}
@@ -519,33 +461,69 @@ export default function AnualClient() {
               value={formatBRL(saldoAno)}
               icon={saldoAno >= 0 ? TrendingUp : TrendingDown}
               accent={saldoAno >= 0 ? 'success' : 'destructive'}
-              sub="Receita − investimentos − despesas"
+              sub={planejadoDe(rPlano.saldo)}
               highlight
             />
           </div>
 
-          {foraDoAnual.qtd > 0 && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div role="radiogroup" aria-label="O que ver na grade" className="inline-flex rounded-xl bg-muted p-1">
+              {(
+                [
+                  ['comparar', 'Comparar'],
+                  ['realizado', 'Realizado'],
+                  ['planejado', 'Planejado'],
+                ] as [ModoGrade, string][]
+              ).map(([m, rotulo]) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={modo === m}
+                  onClick={() => setModo(m)}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
+                    modo === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {rotulo}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {modo === 'comparar' && 'Realizado em cima, planejado embaixo (vermelho quando foge do plano).'}
+              {modo === 'realizado' && 'Soma dos lançamentos de cada categoria.'}
+              {modo === 'planejado' &&
+                'Digite o planejado. Sem valor digitado, vale o das recorrências (em cinza).'}
+            </p>
+          </div>
+
+          {semCategoria.qtd > 0 && (
             <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-amber-500/25 bg-amber-50 px-3.5 py-3 text-sm text-amber-900">
-              <Link2 className="mt-0.5 h-4 w-4 shrink-0" />
+              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
-                <strong>{formatBRL(foraDoAnual.valor)}</strong> em {foraDoAnual.qtd} lançamento
-                {foraDoAnual.qtd > 1 ? 's' : ''} do Fluxo em {ano} ainda não {foraDoAnual.qtd > 1 ? 'entram' : 'entra'} no
-                Controle Anual (categoria não ligada ou sem categoria). Use <strong>Puxar do Fluxo</strong> no grupo
-                ou <strong>Ligar ao Fluxo</strong> no item.
+                <strong>{formatBRL(semCategoria.valor)}</strong> em {semCategoria.qtd} lançamento
+                {semCategoria.qtd > 1 ? 's' : ''} de {ano} sem categoria (não {semCategoria.qtd > 1 ? 'entram' : 'entra'} na
+                grade).{' '}
+                <Link href="/fluxo" className="font-medium underline underline-offset-2">
+                  Categorizar em Lançamentos
+                </Link>
               </span>
             </div>
           )}
 
           <GradeAnual
+            modo={modo}
             mesDestaque={mesDestaque}
             grupos={grupos}
             categorias={categorias}
             itens={itens}
-            valores={efetivos}
-            ligados={ligados}
-            onLigarItem={setLigando}
-            onPuxarFluxo={puxarDoFluxo}
-            resumo={r}
+            realizado={realizado}
+            plano={plano}
+            manual={valores}
+            recorrente={recorrente}
+            resumoReal={rReal}
+            resumoPlano={rPlano}
             onSalvar={salvarCelula}
             onRepetir={repetir}
             onEditarItem={editarItem}
@@ -559,18 +537,8 @@ export default function AnualClient() {
             onRemoverGrupo={removerGrupo}
           />
 
-          <GraficosAnual grupos={grupos} itens={itens} valores={efetivos} resumo={r} />
+          <GraficosAnual grupos={grupos} itens={itens} valores={realizado} resumo={rReal} />
 
-          {ligando && (
-            <LigarFluxoDialog
-              item={ligando}
-              tipoGrupo={grupos.find((g) => g.id === ligando.group_id)?.tipo ?? 'despesa'}
-              categorias={catsFluxo}
-              itens={itens}
-              onClose={() => setLigando(null)}
-              onSalvar={(ligar, desligar) => salvarLigacao(ligando, ligar, desligar)}
-            />
-          )}
         </>
       )}
     </PageLayout>

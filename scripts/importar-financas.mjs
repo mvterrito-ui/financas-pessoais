@@ -1,9 +1,10 @@
-// Importa a aba "Renda Mensal" (FINANCAS.xlsx) pro Fluxo de Caixa.
+// Importa a aba "Renda Mensal" (FINANCAS.xlsx) pros lançamentos.
 // Uso:  node scripts/importar-financas.mjs <seu-email-de-login>
 //
 // - Lê a planilha em data/FINANCAS.xlsx (originais nunca são tocados).
 // - Usa a chave service_role (fura o RLS) só aqui, no servidor.
-// - Re-rodável: apaga os lançamentos origem='import' do seu tenant antes.
+// - Re-rodável: apaga SÓ os lançamentos criados por este script (external_id
+//   'planilha:...'). Faturas OFX/CSV importadas pela tela não são tocadas.
 import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
@@ -93,18 +94,37 @@ async function garantirContas() {
   return mapa
 }
 
+// Categoria "Renda" no plano de contas (grupo de receita; cria se faltar).
 async function garantirCategoriaRenda() {
-  const { data: existente } = await supabase
-    .from('category')
+  let { data: grupo } = await supabase
+    .from('annual_group')
     .select('id')
     .eq('tenant_id', tenant_id)
+    .eq('tipo', 'receita')
+    .eq('ativo', true)
+    .order('ordem')
+    .limit(1)
+    .maybeSingle()
+  if (!grupo) {
+    const r = await supabase
+      .from('annual_group')
+      .insert({ tenant_id, name: 'Receitas', tipo: 'receita', ordem: 0 })
+      .select('id')
+      .single()
+    if (r.error) throw r.error
+    grupo = r.data
+  }
+  const { data: existente } = await supabase
+    .from('annual_item')
+    .select('id')
+    .eq('group_id', grupo.id)
     .eq('name', 'Renda')
-    .eq('tipo', 'entrada')
+    .eq('ativo', true)
     .maybeSingle()
   if (existente) return existente.id
   const { data, error } = await supabase
-    .from('category')
-    .insert({ tenant_id, name: 'Renda', tipo: 'entrada' })
+    .from('annual_item')
+    .insert({ tenant_id, group_id: grupo.id, name: 'Renda', ordem: 1 })
     .select('id')
     .single()
   if (error) throw error
@@ -119,7 +139,7 @@ const { error: errDel } = await supabase
   .from('transaction')
   .delete()
   .eq('tenant_id', tenant_id)
-  .eq('origem', 'import')
+  .like('external_id', 'planilha:%')
 if (errDel) throw errDel
 
 // ---- 6) Monta e insere os lançamentos ---------------------------------
@@ -137,8 +157,8 @@ for (const linha of linhas) {
     lancamentos.push({
       tenant_id, tipo: 'entrada', valor: renda, data,
       descricao: `Renda ${nomeMes}/${ANO}`,
-      category_id: categoriaRenda, account_id: null,
-      recorrente: false, origem: 'import',
+      item_id: categoriaRenda, account_id: null,
+      origem: 'import', external_id: `planilha:${data}:renda`,
     })
   }
 
@@ -148,8 +168,8 @@ for (const linha of linhas) {
     lancamentos.push({
       tenant_id, tipo: 'saida', valor: v, data,
       descricao: `${c.name} ${nomeMes}/${ANO}`,
-      category_id: null, account_id: contas.get(c.name),
-      recorrente: false, origem: 'import',
+      item_id: null, account_id: contas.get(c.name),
+      origem: 'import', external_id: `planilha:${data}:${c.name}`,
     })
   }
 }
