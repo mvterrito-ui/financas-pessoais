@@ -312,18 +312,19 @@ export default function PatrimonioClient() {
     [places, valores, rates],
   )
 
-  // Somas na moeda nativa (pros cards secundários).
-  const totalPorMoeda = useCallback(
-    (moeda: Moeda) =>
-      places
-        .filter((p) => p.moeda === moeda)
-        .reduce((s, p) => s + (Number(valores[p.id]) || 0), 0),
-    [places, valores],
+  // Somas na moeda nativa (pros cards secundários). Cripto é cotado em US$,
+  // mas não é dinheiro em dólar: fica no card próprio.
+  const emMoeda = useCallback((moeda: Moeda) => places.filter((p) => p.moeda === moeda && p.origem !== 'cripto'), [places])
+  const somaNativa = useCallback(
+    (lista: WealthPlace[]) => lista.reduce((s, p) => s + (Number(valores[p.id]) || 0), 0),
+    [valores],
   )
-  const totalUSD = totalPorMoeda('USD')
-  const totalEUR = totalPorMoeda('EUR')
-  const temUSD = places.some((p) => p.moeda === 'USD')
-  const temEUR = places.some((p) => p.moeda === 'EUR')
+  const totalUSD = somaNativa(emMoeda('USD'))
+  const totalEUR = somaNativa(emMoeda('EUR'))
+  const temUSD = emMoeda('USD').length > 0
+  const temEUR = emMoeda('EUR').length > 0
+  const lugarCripto = places.find((p) => p.origem === 'cripto')
+  const totalCripto = lugarCripto ? Number(valores[lugarCripto.id]) || 0 : 0
 
   // Mês anterior em real (dos dados salvos).
   const totalAnteriorBRL = useMemo(() => {
@@ -404,6 +405,14 @@ export default function PatrimonioClient() {
           icon={Wallet}
           sub={`${manuais.length} ${manuais.length === 1 ? 'item' : 'itens'}`}
         />
+        {lugarCripto && totalCripto > 0 && (
+          <StatCard
+            label="Cripto"
+            value={fmtMoeda(totalCripto, lugarCripto.moeda)}
+            icon={Bitcoin}
+            sub={`≈ ${formatBRL(emBRL(totalCripto, lugarCripto.moeda, rates))}`}
+          />
+        )}
         {temUSD && (
           <StatCard
             label="Em dólar"
