@@ -236,13 +236,13 @@ export function Sidebar({ aberto = false, onFechar }: { aberto?: boolean; onFech
             className="group mb-1 flex w-full items-center gap-3 rounded-xl bg-white/[0.04] px-2.5 py-2.5 text-left ring-1 ring-white/[0.06] transition-colors hover:bg-white/[0.08]"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#34d399] to-[#059669] text-xs font-semibold text-white shadow-md shadow-emerald-900/40">
-              {iniciais(nome)}
+              {iniciais(nome ?? email)}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-white">{nome ?? 'Usuário'}</div>
+              <div className="truncate text-sm font-medium text-white">{nome ?? <span className="text-sidebar-foreground/70">Clique pra pôr seu nome</span>}</div>
               <div className="truncate text-[11px] text-sidebar-foreground/50">{email}</div>
             </div>
-            <Pencil className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40 opacity-0 transition-opacity group-hover:opacity-100" />
+            <Pencil className={cn('h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40 transition-opacity group-hover:opacity-100', nome ? 'opacity-0' : '')} />
           </button>
           <button
             onClick={sair}
