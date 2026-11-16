@@ -29,7 +29,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { MonthPicker } from '@/components/ui/month-picker'
 import { usePromptDialog } from '@/components/ui/prompt'
-import { rotuloMes, mesAnterior } from '@/lib/utils'
+import { cn, rotuloMes, mesAnterior } from '@/lib/utils'
 import { formatBRL } from '@/server/fluxo/fluxo.calc'
 import {
   ORIGENS,
@@ -57,6 +57,13 @@ const ICONE_ORIGEM: Record<Origem, LucideIcon> = {
   consorcio: Handshake,
 }
 
+
+const COLUNAS_CARDS: Record<number, string> = {
+  2: 'lg:grid-cols-2',
+  3: 'lg:grid-cols-3',
+  4: 'lg:grid-cols-4',
+  5: 'lg:grid-cols-3 xl:grid-cols-5',
+}
 
 function fmtMoeda(v: number, moeda: Moeda) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: moeda })
@@ -325,6 +332,9 @@ export default function PatrimonioClient() {
   const temEUR = emMoeda('EUR').length > 0
   const lugarCripto = places.find((p) => p.origem === 'cripto')
   const totalCripto = lugarCripto ? Number(valores[lugarCripto.id]) || 0 : 0
+  const temCripto = !!lugarCripto && totalCripto > 0
+  // Cards da composição numa linha só no desktop (2 fixos + cripto/dólar/euro).
+  const qtdCards = 2 + Number(temCripto) + Number(temUSD) + Number(temEUR)
 
   // Mês anterior em real (dos dados salvos).
   const totalAnteriorBRL = useMemo(() => {
@@ -392,7 +402,7 @@ export default function PatrimonioClient() {
       </div>
 
       {/* Composição: investimentos x outros bens; e moeda estrangeira */}
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={cn('mb-5 grid gap-3 sm:grid-cols-2', COLUNAS_CARDS[qtdCards])}>
         <StatCard
           label="Investimentos"
           value={formatBRL(totalInvestBRL)}
@@ -405,7 +415,7 @@ export default function PatrimonioClient() {
           icon={Wallet}
           sub={`${manuais.length} ${manuais.length === 1 ? 'item' : 'itens'}`}
         />
-        {lugarCripto && totalCripto > 0 && (
+        {temCripto && lugarCripto && (
           <StatCard
             label="Cripto"
             value={fmtMoeda(totalCripto, lugarCripto.moeda)}
