@@ -110,7 +110,8 @@ export default function FluxoClient() {
     [router],
   )
 
-  // Cadastros (contas + plano de contas) carregam uma vez.
+  // Cadastros (contas + plano de contas). Recarregam ao abrir o formulário e ao
+  // voltar pra aba, pra pegar categorias criadas no Controle Anual nesse meio tempo.
   const carregarCadastros = useCallback(async () => {
     try {
       const [a, pl] = await Promise.all([api('/api/account'), api('/api/anual/estrutura')])
@@ -145,6 +146,9 @@ export default function FluxoClient() {
 
   useEffect(() => {
     carregarCadastros()
+    const aoVoltar = () => document.visibilityState === 'visible' && carregarCadastros()
+    document.addEventListener('visibilitychange', aoVoltar)
+    return () => document.removeEventListener('visibilitychange', aoVoltar)
   }, [carregarCadastros])
 
   useEffect(() => {
@@ -152,6 +156,7 @@ export default function FluxoClient() {
   }, [carregarTx])
 
   function abrirNovo() {
+    carregarCadastros()
     setEditId(null)
     setF(novoVazio())
     setErro(null)
@@ -160,6 +165,7 @@ export default function FluxoClient() {
 
   // Abre o mesmo modal, mas pré-preenchido pra editar um lançamento existente.
   function abrirEditar(t: Transaction) {
+    carregarCadastros()
     setEditId(t.id)
     setF({
       tipo: t.tipo,

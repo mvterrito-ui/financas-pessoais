@@ -79,7 +79,9 @@ function BotaoIcone({
   )
 }
 
-const ACOES_DESKTOP = 'desk:hidden desk:group-hover/linha:flex desk:group-focus-within/linha:flex'
+// No desktop as ações ficam por cima do nome (absolute) pra não mudar a altura da linha.
+const ACOES_DESKTOP =
+  'desk:absolute desk:right-1 desk:top-1/2 desk:z-30 desk:-translate-y-1/2 desk:hidden desk:rounded-md desk:bg-card desk:pl-1 desk:group-hover/linha:flex desk:group-focus-within/linha:flex'
 
 // Ações da linha. Desktop com mouse: aparecem no hover. Toque: botão "⋯".
 function Acoes({ aberto, onAlternar, children }: { aberto: boolean; onAlternar: () => void; children: ReactNode }) {
@@ -99,7 +101,7 @@ function Acoes({ aberto, onAlternar, children }: { aberto: boolean; onAlternar: 
         className={cn(
           'shrink-0 items-center',
           aberto
-            ? 'absolute right-9 top-1/2 z-30 flex -translate-y-1/2 rounded-lg border border-border bg-card p-0.5 shadow-lg desk:static desk:translate-y-0 desk:border-0 desk:p-0 desk:shadow-none'
+            ? 'absolute right-9 top-1/2 z-30 flex -translate-y-1/2 rounded-lg border border-border bg-card p-0.5 shadow-lg desk:border-0 desk:p-0 desk:shadow-none'
             : 'hidden',
           ACOES_DESKTOP,
         )}
