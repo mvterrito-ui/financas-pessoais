@@ -84,26 +84,25 @@ async function carregarManuais(sb: SupabaseClient, tenantId: string, mes: string
   const manuais = ok(
     await sb
       .from('wealth_place')
-      .select('id, oculto_desde')
+      .select('id')
       .eq('tenant_id', tenantId)
       .eq('ativo', true)
       .is('origem', null),
-  ) as { id: string; oculto_desde: string | null }[]
-  // Bem oculto neste mês (ou antes) não é carregado pra frente.
-  const visiveis = manuais.filter((p) => !p.oculto_desde || mes < p.oculto_desde.slice(0, 10))
-  if (visiveis.length === 0) return 0
+  ) as { id: string }[]
+  // Inclui os ocultos: ocultar só tira da lista, o valor continua contando.
+  if (manuais.length === 0) return 0
 
   const snaps = ok(
     await sb
       .from('wealth_snapshot')
       .select('place_id, mes, valor')
       .eq('tenant_id', tenantId)
-      .in('place_id', visiveis.map((p) => p.id))
+      .in('place_id', manuais.map((p) => p.id))
       .lte('mes', mes)
       .order('mes', { ascending: false }),
   ) as { place_id: string; mes: string; valor: number | string }[]
 
-  const novos = visiveis.flatMap(({ id }) => {
+  const novos = manuais.flatMap(({ id }) => {
     const doLugar = snaps.filter((s) => s.place_id === id) // já em ordem decrescente
     if (doLugar.length === 0 || doLugar[0].mes.slice(0, 10) === mes) return []
     return [{ tenant_id: tenantId, place_id: id, mes, valor: Number(doLugar[0].valor) }]

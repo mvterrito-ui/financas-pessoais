@@ -118,7 +118,7 @@ export function LinhaBem({
           <button
             type="button"
             onClick={onHide}
-            title={`Ocultar ${place.name} (mantém o histórico)`}
+            title={`Ocultar ${place.name} da lista (continua no total)`}
             aria-label={`Ocultar ${place.name}`}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >

@@ -224,8 +224,8 @@ export default function PatrimonioClient() {
       ocultar &&
       !confirm(
         `Ocultar "${place.name}" a partir de ${rotuloMes(mes)}?\n\n` +
-          'Ele sai da lista e deixa de contar daqui pra frente. ' +
-          'Os meses anteriores continuam no histórico. Dá pra mostrar de novo depois.',
+          'Ele só sai da lista. O valor continua contando no total e na evolução. ' +
+          'Dá pra mostrar de novo depois.',
       )
     )
       return
@@ -247,7 +247,7 @@ export default function PatrimonioClient() {
       !confirm(
         `Remover "${place.name}" de vez?\n\n` +
           'Ele some do total e de TODO o histórico (gráficos e projeção). ' +
-          'Se só não tem mais esse bem, use Ocultar: os meses anteriores continuam.',
+          'Se só não tem mais esse bem, zere o valor e use Ocultar: os meses anteriores continuam.',
       )
     )
       return
@@ -302,7 +302,7 @@ export default function PatrimonioClient() {
     [valores, rates],
   )
   const totalInvestBRL = somaBRL(autos)
-  const totalManualBRL = somaBRL(manuais)
+  const totalManualBRL = somaBRL(todosManuais) // ocultos continuam contando
 
   const moedaDoLugar = useMemo(
     () => Object.fromEntries(places.map((p) => [p.id, p.moeda])) as Record<string, Moeda>,
@@ -413,7 +413,7 @@ export default function PatrimonioClient() {
           label="Outros bens (manual)"
           value={formatBRL(totalManualBRL)}
           icon={Wallet}
-          sub={`${manuais.length} ${manuais.length === 1 ? 'item' : 'itens'}`}
+          sub={`${manuais.length} ${manuais.length === 1 ? 'item' : 'itens'}${ocultos.length ? ` · ${ocultos.length} ${ocultos.length === 1 ? 'oculto' : 'ocultos'}` : ''}`}
         />
         {temCripto && lugarCripto && (
           <StatCard
@@ -534,7 +534,7 @@ export default function PatrimonioClient() {
             <Plus className="h-4 w-4" /> Adicionar bem
           </button>
 
-          {/* Ocultos: fora da lista e do total a partir do mês, histórico mantido */}
+          {/* Ocultos: fora da lista a partir do mês, mas continuam no total */}
           {ocultos.length > 0 && (
             <div className="border-t border-border bg-muted/20">
               <button
@@ -558,15 +558,15 @@ export default function PatrimonioClient() {
                           {p.name}
                         </div>
                         <div className="text-xs text-muted-foreground/80">
-                          Oculto desde {rotuloMes(String(p.oculto_desde).slice(0, 7))} · histórico
-                          anterior mantido
+                          Oculto desde {rotuloMes(String(p.oculto_desde).slice(0, 7))} · continua no total
+                          {valores[p.id] !== undefined && ` (${fmtMoeda(Number(valores[p.id]) || 0, p.moeda)})`}
                         </div>
                       </div>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => ocultarLugar(p, false)}
-                        title="Volta a aparecer e contar em todos os meses"
+                        title="Volta a aparecer na lista"
                       >
                         <Eye /> Mostrar
                       </Button>

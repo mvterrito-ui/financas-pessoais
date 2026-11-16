@@ -21,11 +21,11 @@ export type WealthPlace = {
   moeda: Moeda
   /** null = manual; preenchido = automático (vem do módulo). */
   origem?: Origem | null
-  /** 'AAAA-MM-DD': oculto (some e deixa de contar) a partir desse mês. */
+  /** 'AAAA-MM-DD': some da lista a partir desse mês (continua contando nos totais). */
   oculto_desde?: string | null
 }
 
-/** O bem aparece (e conta) no mês 'AAAA-MM-01'? */
+/** O bem aparece na lista do mês 'AAAA-MM-01'? (Oculto ou não, sempre conta.) */
 export const visivelNoMes = (p: Pick<WealthPlace, 'oculto_desde'>, mes: string) =>
   !p.oculto_desde || mes < p.oculto_desde.slice(0, 10)
 
