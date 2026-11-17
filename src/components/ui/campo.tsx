@@ -31,7 +31,9 @@ export function CampoShell({
         'flex cursor-text items-center gap-2 rounded-lg border transition-all',
         campoFoco,
         tamanho === 'grade'
-          ? 'h-7 rounded-md border-transparent bg-transparent px-1.5 hover:bg-card focus-within:bg-card focus-within:ring-2'
+          ? // Com mouse, a caixa só aparece no hover/foco; no toque fica uma borda leve
+            // pra mostrar que é editável. px de 5px + 1px de borda = 6px até o número.
+            'h-7 rounded-md border-input/60 bg-transparent px-[5px] hover:bg-card focus-within:bg-card focus-within:ring-2 desk:[&:not(:hover):not(:focus-within)]:border-transparent'
           : 'border-input bg-card shadow-sm',
         tamanho === 'sm' ? 'h-9 px-2.5' : tamanho === 'md' ? 'h-10 px-3' : null,
         className,

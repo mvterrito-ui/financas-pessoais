@@ -34,6 +34,7 @@ import {
   type resumo as resumoFn,
 } from '@/server/anual/anual.calc'
 import { formatData } from '@/lib/utils'
+import { mesAtualBR } from '@/server/patrimonio/patrimonio.calc'
 import type { Transaction } from '@/server/fluxo/fluxo.calc'
 import { MESES_CURTOS, TIPOS } from './tipos'
 
@@ -51,6 +52,10 @@ const fmtPct = (p: number | null) =>
 // Larguras: 1ª coluna fixa (mais estreita no celular) + 12 meses + Total + Média.
 const COL_NOME = 'sticky left-0 z-10 w-40 min-w-40 max-w-40 bg-card sm:w-60 sm:min-w-60 sm:max-w-60'
 const COL_MES = 'w-28 min-w-28 px-1'
+// Células fixas na rolagem lateral precisam de fundo SÓLIDO (com transparência
+// os meses aparecem por trás). Mesmo tom de bg-muted/40 e bg-muted/30 sobre o card.
+const FUNDO_CABECALHO = 'bg-[color-mix(in_oklab,var(--color-muted)_40%,var(--color-card))]'
+const FUNDO_SUBGRUPO = 'bg-[color-mix(in_oklab,var(--color-muted)_30%,var(--color-card))]'
 // border-separate (necessário pro sticky) ignora borda em <tr>: vai em cada <td>.
 const LINHA = 'border-t border-border'
 
@@ -152,6 +157,7 @@ export function GradeAnual(props: {
 }) {
   const { modo, mesDestaque, grupos, categorias, itens, resumoReal, resumoPlano } = props
   const meses = resumoReal.meses
+  const mesAtual = mesAtualBR() // AAAA-MM-01
   const [fechados, setFechados] = useState<Set<string>>(new Set())
   const [verOcultos, setVerOcultos] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<string | null>(null)
@@ -188,8 +194,10 @@ export function GradeAnual(props: {
     const lancs = props.lancamentos.get(`${item.id}|${mes}`) ?? []
     const simples = lancs.length === 0 || (lancs.length === 1 && (lancs[0].moeda ?? 'BRL') === 'BRL')
     const rotulo = `Realizado de ${item.name} em ${MESES_CURTOS[i]}`
-    // Sem realizado ainda: o planejado vai dentro do campo (não aumenta a linha).
-    const planoNoCampo = simples && lancs.length === 0 && modo === 'comparar' && plano !== undefined
+    // Mês atual ou futuro sem lançamento: o planejado vai dentro do campo (não
+    // aumenta a linha). Em mês que já terminou fica embaixo, com o vermelho do desvio.
+    const textoPlano =
+      modo === 'comparar' && plano !== undefined && lancs.length === 0 && mes >= mesAtual ? `de ${fmtCurto(plano)}` : null
     return (
       <div className="flex flex-col items-end">
         {simples ? (
@@ -197,8 +205,15 @@ export function GradeAnual(props: {
             tamanho="grade"
             key={`${lancs[0]?.id ?? 'novo'}-${lancs[0]?.valor ?? ''}-${props.desfeito}`}
             aria-label={rotulo}
-            title={lancs[0] ? `${lancs[0].descricao || 'Sem descrição'} · ${formatData(lancs[0].data)}` : 'Digite pra criar um lançamento'}
-            placeholder={planoNoCampo ? `de ${fmtCurto(plano!)}` : '—'}
+            title={
+              lancs[0]
+                ? `${lancs[0].descricao || 'Sem descrição'} · ${formatData(lancs[0].data)}`
+                : textoPlano
+                  ? `Planejado ${fmt(plano)}. Digite pra criar um lançamento`
+                  : 'Digite pra criar um lançamento'
+            }
+            aria-description={textoPlano ? `Planejado ${fmt(plano)}` : undefined}
+            placeholder={textoPlano ?? '—'}
             inicial={lancs[0] ? String(lancs[0].valor) : ''}
             onCommit={(v) => props.onSalvarReal(item, tipo, mes, v)}
           />
@@ -208,13 +223,13 @@ export function GradeAnual(props: {
             onClick={() => props.onAbrirCelula(item, tipo, mes)}
             aria-label={`${rotulo}: ${lancs.length} lançamentos`}
             title="Ver e editar os lançamentos"
-            className="flex h-7 w-full items-center justify-end gap-1.5 rounded-md border border-dashed border-input px-1.5 text-base tabular-nums hover:border-primary/40 hover:bg-card md:text-sm"
+            className="flex h-7 w-full items-center justify-end gap-1.5 rounded-md border border-dashed border-input px-[5px] text-base tabular-nums hover:border-primary/40 hover:bg-card md:text-sm"
           >
             <span className="text-[10px] text-muted-foreground">{lancs.length}×</span>
             <span className="font-medium">{fmt(real)}</span>
           </button>
         )}
-        {!planoNoCampo && dePlano(tipo, real, plano)}
+        {!textoPlano && dePlano(tipo, real, plano)}
       </div>
     )
   }
@@ -311,8 +326,8 @@ export function GradeAnual(props: {
               <th
                 className={cn(
                   COL_NOME,
-                  // fundo sólido: é fixo na rolagem e não pode deixar os meses aparecerem por trás
-                  'z-20 border-b border-border bg-[color-mix(in_oklab,var(--color-muted)_40%,var(--color-card))] px-4 py-2 text-left',
+                  FUNDO_CABECALHO,
+                  'z-20 border-b border-border px-4 py-2 text-left',
                 )}
               >
                 Categoria
@@ -432,7 +447,7 @@ export function GradeAnual(props: {
                     {subs.map((c) => (
                       <Fragment key={c.id}>
                         <tr className="group/linha">
-                          <td className={cn(COL_NOME, LINHA, 'bg-muted/30 py-1 pl-4 pr-1')}>
+                          <td className={cn(COL_NOME, LINHA, FUNDO_SUBGRUPO, 'py-1 pl-4 pr-1')}>
                             <div className="flex items-center gap-1">
                               <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                 {c.name}
