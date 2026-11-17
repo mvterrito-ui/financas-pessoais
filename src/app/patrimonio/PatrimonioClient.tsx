@@ -25,6 +25,7 @@ import {
 import { PageLayout } from '@/components/layout/PageLayout'
 import { StatCard } from '@/components/shared/StatCard'
 import { Card } from '@/components/ui/card'
+import { EvolucaoBarras } from '@/components/shared/EvolucaoBarras'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { MonthPicker } from '@/components/ui/month-picker'
@@ -349,7 +350,6 @@ export default function PatrimonioClient() {
     () => evolucaoBRL(snaps, moedaDoLugar, rates),
     [snaps, moedaDoLugar, rates],
   )
-  const maxSerie = Math.max(1, ...serie.map((p) => p.total))
 
   return (
     <PageLayout
@@ -583,7 +583,7 @@ export default function PatrimonioClient() {
         </Card>
 
         {/* Evolução (gráfico de barras CSS) */}
-        <Card className="p-4">
+        <Card className="min-w-0 p-4">
           <div className="mb-4 text-sm font-medium text-muted-foreground">
             Evolução do patrimônio (em real)
           </div>
@@ -592,23 +592,7 @@ export default function PatrimonioClient() {
               Preencha os valores de alguns meses pra ver a evolução.
             </p>
           ) : (
-            <div className="flex h-56 items-end gap-2">
-              {serie.map((ponto, i) => (
-                <div key={ponto.mes} className="flex flex-1 flex-col items-center gap-1">
-                  <span className="text-[10px] tabular-nums text-muted-foreground">
-                    {(ponto.total / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}k
-                  </span>
-                  <div
-                    className={`w-full max-w-10 rounded-t-[4px] transition-colors ${i === serie.length - 1 ? 'bg-primary' : 'bg-primary/35 hover:bg-primary/60'}`}
-                    style={{ height: `${Math.max(4, (ponto.total / maxSerie) * 180)}px` }}
-                    title={formatBRL(ponto.total)}
-                  />
-                  <span className="text-[10px] text-muted-foreground">
-                    {rotuloMes(ponto.mes.slice(0, 7)).slice(0, 3)}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <EvolucaoBarras serie={serie} alturaBarra={180} />
           )}
         </Card>
       </div>
