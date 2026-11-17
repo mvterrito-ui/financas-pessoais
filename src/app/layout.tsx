@@ -18,6 +18,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Finanças",
   description: "Caixa, patrimônio e investimentos",
+  // Nome embaixo do ícone na tela inicial do iPhone.
+  appleWebApp: { title: "Finanças" },
 };
 
 export default function RootLayout({

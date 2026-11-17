@@ -8,8 +8,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Roda em tudo, menos arquivos estáticos e imagens.
+  // Roda em tudo, menos arquivos estáticos, imagens e o manifest (o celular
+  // busca sem login; se passasse aqui iria pro /login e o ícone não aparecia).
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
