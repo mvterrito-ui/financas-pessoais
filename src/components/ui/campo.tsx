@@ -5,8 +5,9 @@ import { cn } from '@/lib/utils'
 // Caixa com símbolo/unidade dentro e o número em destaque à direita.
 //   tamanho 'md' -> formulários e o Patrimônio (h-10, igual ao <Input>)
 //   tamanho 'sm' -> células de tabela (h-9)
+//   tamanho 'grade' -> grade densa (h-7, sem borda até passar o mouse ou focar)
 
-export type Tamanho = 'sm' | 'md'
+export type Tamanho = 'sm' | 'md' | 'grade'
 
 export const campoFoco =
   'hover:border-primary/40 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/15'
@@ -27,9 +28,12 @@ export function CampoShell({
   return (
     <label
       className={cn(
-        'flex cursor-text items-center gap-2 rounded-lg border border-input bg-card shadow-sm transition-all',
+        'flex cursor-text items-center gap-2 rounded-lg border transition-all',
         campoFoco,
-        tamanho === 'sm' ? 'h-9 px-2.5' : 'h-10 px-3',
+        tamanho === 'grade'
+          ? 'h-7 rounded-md border-transparent bg-transparent px-1.5 hover:bg-card focus-within:bg-card focus-within:ring-2'
+          : 'border-input bg-card shadow-sm',
+        tamanho === 'sm' ? 'h-9 px-2.5' : tamanho === 'md' ? 'h-10 px-3' : null,
         className,
       )}
     >
@@ -50,10 +54,11 @@ export function CampoShell({
 
 export function campoInputClass(tamanho: Tamanho = 'md') {
   return cn(
-    'w-full min-w-0 bg-transparent text-right font-semibold tabular-nums text-foreground outline-none',
+    'w-full min-w-0 bg-transparent text-right tabular-nums text-foreground outline-none',
+    tamanho === 'grade' ? 'font-medium' : 'font-semibold',
     'placeholder:font-normal placeholder:text-muted-foreground/50 disabled:cursor-not-allowed disabled:opacity-50',
     // ≥16px no celular: abaixo disso o Safari do iPhone dá zoom ao focar.
-    tamanho === 'sm' ? 'text-base md:text-sm' : 'text-base',
+    tamanho === 'md' ? 'text-base' : 'text-base md:text-sm',
   )
 }
 

@@ -50,7 +50,7 @@ const fmtPct = (p: number | null) =>
 
 // Larguras: 1ª coluna fixa (mais estreita no celular) + 12 meses + Total + Média.
 const COL_NOME = 'sticky left-0 z-10 w-40 min-w-40 max-w-40 bg-card sm:w-60 sm:min-w-60 sm:max-w-60'
-const COL_MES = 'w-32 min-w-32 px-1.5'
+const COL_MES = 'w-28 min-w-28 px-1'
 // border-separate (necessário pro sticky) ignora borda em <tr>: vai em cada <td>.
 const LINHA = 'border-t border-border'
 
@@ -173,7 +173,7 @@ export function GradeAnual(props: {
     const d = desvio(tipo, real ?? 0, plano)
     return (
       <span
-        className={cn('text-[10px] tabular-nums', d?.ruim ? 'text-destructive' : 'text-muted-foreground')}
+        className={cn('px-1.5 text-[10px] leading-3 tabular-nums', d?.ruim ? 'text-destructive' : 'text-muted-foreground')}
         title={d ? `Planejado ${fmt(plano)} · diferença ${fmt(d.diferenca)}` : undefined}
       >
         de {fmtCurto(plano)}
@@ -188,14 +188,17 @@ export function GradeAnual(props: {
     const lancs = props.lancamentos.get(`${item.id}|${mes}`) ?? []
     const simples = lancs.length === 0 || (lancs.length === 1 && (lancs[0].moeda ?? 'BRL') === 'BRL')
     const rotulo = `Realizado de ${item.name} em ${MESES_CURTOS[i]}`
+    // Sem realizado ainda: o planejado vai dentro do campo (não aumenta a linha).
+    const planoNoCampo = simples && lancs.length === 0 && modo === 'comparar' && plano !== undefined
     return (
-      <div className="flex flex-col items-end gap-0.5">
+      <div className="flex flex-col items-end">
         {simples ? (
           <MoneyCommit
+            tamanho="grade"
             key={`${lancs[0]?.id ?? 'novo'}-${lancs[0]?.valor ?? ''}-${props.desfeito}`}
             aria-label={rotulo}
             title={lancs[0] ? `${lancs[0].descricao || 'Sem descrição'} · ${formatData(lancs[0].data)}` : 'Digite pra criar um lançamento'}
-            placeholder="—"
+            placeholder={planoNoCampo ? `de ${fmtCurto(plano!)}` : '—'}
             inicial={lancs[0] ? String(lancs[0].valor) : ''}
             onCommit={(v) => props.onSalvarReal(item, tipo, mes, v)}
           />
@@ -205,13 +208,13 @@ export function GradeAnual(props: {
             onClick={() => props.onAbrirCelula(item, tipo, mes)}
             aria-label={`${rotulo}: ${lancs.length} lançamentos`}
             title="Ver e editar os lançamentos"
-            className="flex h-9 w-full items-center justify-end gap-1.5 rounded-lg border border-dashed border-input px-2.5 text-base tabular-nums hover:border-primary/40 hover:bg-muted/40 md:text-sm"
+            className="flex h-7 w-full items-center justify-end gap-1.5 rounded-md border border-dashed border-input px-1.5 text-base tabular-nums hover:border-primary/40 hover:bg-card md:text-sm"
           >
             <span className="text-[10px] text-muted-foreground">{lancs.length}×</span>
-            <span className="font-semibold">{fmt(real)}</span>
+            <span className="font-medium">{fmt(real)}</span>
           </button>
         )}
-        {dePlano(tipo, real, plano)}
+        {!planoNoCampo && dePlano(tipo, real, plano)}
       </div>
     )
   }
@@ -222,7 +225,7 @@ export function GradeAnual(props: {
     const exibida = modo === 'planejado' ? plano : real
     return (
       <tr key={item.id} className="group/linha">
-        <td className={cn(COL_NOME, LINHA, 'py-1.5 pr-1', recuo ? 'pl-8' : 'pl-4')}>
+        <td className={cn(COL_NOME, LINHA, 'py-0.5 pr-1', recuo ? 'pl-8' : 'pl-4')}>
           <div className="flex items-center gap-1">
             <span className={cn('min-w-0 flex-1 truncate', item.oculto && 'text-muted-foreground')} title={item.name}>
               {item.oculto && <EyeOff className="mr-1 inline h-3 w-3" />}
@@ -256,9 +259,10 @@ export function GradeAnual(props: {
           const manual = props.manual.get(`${item.id}|${mes}`)
           const sugestao = props.recorrente.get(`${item.id}|${mes}`)
           return (
-            <td key={mes} className={cn(COL_MES, LINHA, 'py-1 text-right', destaque(i))}>
+            <td key={mes} className={cn(COL_MES, LINHA, 'py-0.5 text-right', destaque(i))}>
               {modo === 'planejado' ? (
                 <MoneyCommit
+                  tamanho="grade"
                   aria-label={`Planejado de ${item.name} em ${MESES_CURTOS[i]}`}
                   placeholder={sugestao !== undefined ? fmt(sugestao) : '—'}
                   title={sugestao !== undefined && manual === undefined ? 'Vem das recorrências (digite pra mudar)' : undefined}
@@ -271,8 +275,8 @@ export function GradeAnual(props: {
             </td>
           )
         })}
-        <td className={cn(LINHA, 'px-3 py-1.5 text-right font-medium tabular-nums')}>{fmt(total(exibida))}</td>
-        <td className={cn(LINHA, 'px-3 py-1.5 text-right tabular-nums text-muted-foreground')}>{fmt(media(exibida))}</td>
+        <td className={cn(LINHA, 'px-3 py-0.5 text-right font-medium tabular-nums')}>{fmt(total(exibida))}</td>
+        <td className={cn(LINHA, 'px-3 py-0.5 text-right tabular-nums text-muted-foreground')}>{fmt(media(exibida))}</td>
       </tr>
     )
   }
@@ -282,16 +286,16 @@ export function GradeAnual(props: {
     const exibida = modo === 'planejado' ? plano : real
     return (
       <tr className={cn('font-semibold', classe)}>
-        <td className={cn(COL_NOME, LINHA, 'bg-muted px-4 py-2')}>
+        <td className={cn(COL_NOME, LINHA, 'bg-muted px-4 py-1.5')}>
           <span className="block truncate">{rotulo}</span>
         </td>
         {exibida.map((v, i) => (
-          <td key={i} className={cn(COL_MES, LINHA, 'bg-muted py-2 text-right', destaque(i))}>
+          <td key={i} className={cn(COL_MES, LINHA, 'bg-muted px-2.5 py-1.5 text-right', destaque(i))}>
             <span className={cn('tabular-nums', v === undefined && 'text-muted-foreground/60')}>{fmt(v)}</span>
           </td>
         ))}
-        <td className={cn(LINHA, 'bg-muted px-3 py-2 text-right tabular-nums')}>{fmt(total(exibida))}</td>
-        <td className={cn(LINHA, 'bg-muted px-3 py-2 text-right tabular-nums text-muted-foreground')}>
+        <td className={cn(LINHA, 'bg-muted px-3 py-1.5 text-right tabular-nums')}>{fmt(total(exibida))}</td>
+        <td className={cn(LINHA, 'bg-muted px-3 py-1.5 text-right tabular-nums text-muted-foreground')}>
           {fmt(media(exibida))}
         </td>
       </tr>
@@ -304,13 +308,21 @@ export function GradeAnual(props: {
         <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
           <thead>
             <tr className="text-xs font-medium text-muted-foreground">
-              <th className={cn(COL_NOME, 'z-20 border-b border-border bg-muted/40 px-4 py-2.5 text-left')}>Categoria</th>
+              <th
+                className={cn(
+                  COL_NOME,
+                  // fundo sólido: é fixo na rolagem e não pode deixar os meses aparecerem por trás
+                  'z-20 border-b border-border bg-[color-mix(in_oklab,var(--color-muted)_40%,var(--color-card))] px-4 py-2 text-left',
+                )}
+              >
+                Categoria
+              </th>
               {MESES_CURTOS.map((m, i) => (
                 <th
                   key={m}
                   className={cn(
                     COL_MES,
-                    'border-b border-border bg-muted/40 py-2.5 pr-3 text-right',
+                    'border-b border-border bg-muted/40 px-2.5 py-2 text-right',
                     i === mesDestaque && 'bg-primary/10 text-primary',
                   )}
                 >
@@ -344,7 +356,7 @@ export function GradeAnual(props: {
               <tbody key={g.id}>
                 {/* Cabeçalho do grupo */}
                 <tr className="group/linha">
-                  <td className={cn(COL_NOME, 'border-t-4 border-background px-2 py-2.5')}>
+                  <td className={cn(COL_NOME, 'border-t-4 border-background px-2 py-2')}>
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
@@ -374,7 +386,7 @@ export function GradeAnual(props: {
                       </Acoes>
                     </div>
                   </td>
-                  <td colSpan={14} className="border-t-4 border-background px-3 py-2.5">
+                  <td colSpan={14} className="border-t-4 border-background px-3 py-2">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <span className={cn('rounded-full px-2 py-0.5 font-semibold ring-1 ring-inset', tipo.selo)}>
                         {tipo.label}
@@ -420,7 +432,7 @@ export function GradeAnual(props: {
                     {subs.map((c) => (
                       <Fragment key={c.id}>
                         <tr className="group/linha">
-                          <td className={cn(COL_NOME, LINHA, 'bg-muted/30 py-1.5 pl-4 pr-1')}>
+                          <td className={cn(COL_NOME, LINHA, 'bg-muted/30 py-1 pl-4 pr-1')}>
                             <div className="flex items-center gap-1">
                               <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                 {c.name}
@@ -449,7 +461,7 @@ export function GradeAnual(props: {
                 {linhaTotal(`Total ${g.name}`, g.tipo, totalReal, totalPlano)}
                 {g.tipo !== 'receita' && (
                   <tr className="text-xs text-muted-foreground">
-                    <td className={cn(COL_NOME, 'px-4 py-1.5')}>% da receita</td>
+                    <td className={cn(COL_NOME, 'px-4 py-1')}>% da receita</td>
                     {totalExibido.map((v, i) => {
                       const pct = pctDaReceita(v, rExibido.receita[i])
                       return (
@@ -457,7 +469,7 @@ export function GradeAnual(props: {
                           key={i}
                           className={cn(
                             COL_MES,
-                            'py-1.5 text-right tabular-nums',
+                            'px-2.5 py-1 text-right tabular-nums',
                             destaque(i),
                             metaFora(g.tipo, pct, g.meta_pct == null ? null : Number(g.meta_pct)) && 'font-semibold text-destructive',
                           )}
@@ -471,7 +483,7 @@ export function GradeAnual(props: {
                       return (
                         <td
                           className={cn(
-                            'px-3 py-1.5 text-right tabular-nums',
+                            'px-3 py-1 text-right tabular-nums',
                             metaFora(g.tipo, pct, g.meta_pct == null ? null : Number(g.meta_pct)) && 'font-semibold text-destructive',
                           )}
                         >
@@ -515,7 +527,7 @@ export function GradeAnual(props: {
                   key={i}
                   className={cn(
                     COL_MES,
-                    'border-t-2 border-foreground/20 bg-muted py-2.5 text-right tabular-nums',
+                    'border-t-2 border-foreground/20 bg-muted px-2.5 py-2 text-right tabular-nums',
                     v !== undefined && (v >= 0 ? 'text-success' : 'text-destructive'),
                   )}
                 >

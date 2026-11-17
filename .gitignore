@@ -50,3 +50,6 @@ next-env.d.ts
 CLAUDE.md
 AGENTS.md
 .claude/
+
+# script local de importação (não versionar)
+scripts/importar-orcamento-svn.mjs
