@@ -77,6 +77,7 @@ npm install
 # 4. usuário + dados de demonstração (como o cadastro é fechado, é assim
 #    que se cria o login pra testar). O login e a senha aparecem no terminal;
 #    pra escolher a senha: DEMO_SENHA=suasenha npm run seed:demo -- --sim
+#    pra recriar os dados sem trocar a senha: npm run seed:demo -- --sim --manter-senha
 npm run seed:demo -- --sim   # só em projeto Supabase de TESTE
 
 # 5. sobe o app e entre com o login do demo
