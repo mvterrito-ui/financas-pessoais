@@ -15,6 +15,7 @@ import {
   BarChart3,
   CalendarRange,
   Handshake,
+  Download,
   LogOut,
   Pencil,
   type LucideIcon,
@@ -244,13 +245,24 @@ export function Sidebar({ aberto = false, onFechar }: { aberto?: boolean; onFech
             </div>
             <Pencil className={cn('h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40 transition-opacity group-hover:opacity-100', nome ? 'opacity-0' : '')} />
           </button>
-          <button
-            onClick={sair}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/60 transition-colors hover:bg-white/[0.06] hover:text-white"
-          >
-            <LogOut className="h-4 w-4" />
-            Sair
-          </button>
+          <div className="grid grid-cols-2 gap-1">
+            <a
+              href="/api/backup"
+              download
+              title="Baixar um arquivo com todos os seus dados"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/60 transition-colors hover:bg-white/[0.06] hover:text-white"
+            >
+              <Download className="h-4 w-4" />
+              Backup
+            </a>
+            <button
+              onClick={sair}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/60 transition-colors hover:bg-white/[0.06] hover:text-white"
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </button>
+          </div>
         </div>
 
       </aside>
