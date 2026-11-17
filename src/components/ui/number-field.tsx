@@ -69,3 +69,29 @@ export function NumberCommit({
     <NumberField tamanho="sm" {...props} value={valor} onValueChange={setValor} onBlur={commit} />
   )
 }
+
+/** Dia do mês digitado: só números, no máximo 2 dígitos e nunca acima de 31. */
+export function limitarDia(txt: string): string {
+  const d = txt.replace(/\D/g, '').slice(0, 2)
+  return d && Number(d) > 31 ? '31' : d
+}
+
+/** Campo de dia do mês (1 a 31). */
+export const DiaField = React.forwardRef<HTMLInputElement, Omit<Props, 'casas'>>(
+  ({ onValueChange, onBlur, value, ...props }, ref) => (
+    <NumberField
+      ref={ref}
+      placeholder="1 a 31"
+      {...props}
+      value={value}
+      casas={0}
+      maxLength={2}
+      onValueChange={(v) => onValueChange(limitarDia(v))}
+      onBlur={(e) => {
+        if (value !== '' && Number(value) < 1) onValueChange('1')
+        onBlur?.(e)
+      }}
+    />
+  ),
+)
+DiaField.displayName = 'DiaField'

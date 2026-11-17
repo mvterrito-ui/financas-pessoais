@@ -86,7 +86,7 @@ export default function RendaFixaClient() {
           { name: 'tipo', label: 'Tipo', placeholder: 'Tesouro, CDB, LCI…' },
           { name: 'valor_aplicado', label: 'Valor aplicado', type: 'money', prefixo: 'R$' },
           { name: 'valor_atual', label: 'Valor atual', type: 'money', prefixo: 'R$' },
-          { name: 'vencimento', label: 'Vencimento (opcional)', type: 'text', placeholder: 'AAAA-MM-DD' },
+          { name: 'vencimento', label: 'Vencimento (opcional)', type: 'date' },
         ],
       })
       if (!v?.nome) return

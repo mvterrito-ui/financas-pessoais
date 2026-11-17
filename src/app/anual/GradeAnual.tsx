@@ -33,6 +33,8 @@ import {
   type Valores,
   type resumo as resumoFn,
 } from '@/server/anual/anual.calc'
+import { formatData } from '@/lib/utils'
+import type { Transaction } from '@/server/fluxo/fluxo.calc'
 import { MESES_CURTOS, TIPOS } from './tipos'
 
 type Resumo = ReturnType<typeof resumoFn>
@@ -128,7 +130,15 @@ export function GradeAnual(props: {
   recorrente: Valores
   resumoReal: Resumo
   resumoPlano: Resumo
+  /** Lançamentos de cada célula (chave item|mês). */
+  lancamentos: Map<string, Transaction[]>
+  /** Muda quando uma edição é desfeita, pra os campos voltarem ao valor salvo. */
+  desfeito: number
   onSalvar: (itemId: string, mes: string, valor: string) => void
+  /** Realizado digitado numa célula simples (0 ou 1 lançamento em real). */
+  onSalvarReal: (item: Item, tipo: TipoGrupo, mes: string, valor: string) => void
+  /** Célula com vários lançamentos ou outra moeda: abre a lista. */
+  onAbrirCelula: (item: Item, tipo: TipoGrupo, mes: string) => void
   onRepetir: (item: Item) => void
   onEditarItem: (item: Item) => void
   onOcultarItem: (item: Item, oculto: boolean) => void
@@ -157,22 +167,51 @@ export function GradeAnual(props: {
   // Totais exibidos: planejado no modo Planejado; realizado nos outros.
   const rExibido = modo === 'planejado' ? resumoPlano : resumoReal
 
-  // Célula de número com, no modo Comparar, o planejado embaixo (colorido pelo desvio).
-  function celulaComparada(tipo: TipoGrupo, real: number | undefined, plano: number | undefined, forte = false) {
-    const d = desvio(tipo, real ?? (plano !== undefined ? 0 : undefined), plano)
+  // "de X" do modo Comparar: o planejado digitado, vermelho quando foge do plano.
+  function dePlano(tipo: TipoGrupo, real: number | undefined, plano: number | undefined) {
+    if (modo !== 'comparar' || plano === undefined) return null
+    const d = desvio(tipo, real ?? 0, plano)
     return (
-      <div className="flex flex-col items-end leading-tight">
-        <span className={cn('tabular-nums', forte && 'font-semibold', real === undefined && 'text-muted-foreground/60')}>
-          {fmt(real)}
-        </span>
-        {modo === 'comparar' && plano !== undefined && (
-          <span
-            className={cn('text-[10px] tabular-nums', d?.ruim ? 'text-destructive' : 'text-muted-foreground')}
-            title={d ? `Planejado ${fmt(plano)} · diferença ${fmt(d.diferenca)}` : undefined}
+      <span
+        className={cn('text-[10px] tabular-nums', d?.ruim ? 'text-destructive' : 'text-muted-foreground')}
+        title={d ? `Planejado ${fmt(plano)} · diferença ${fmt(d.diferenca)}` : undefined}
+      >
+        de {fmtCurto(plano)}
+      </span>
+    )
+  }
+
+
+  // Célula editável do realizado: com 0 ou 1 lançamento em real, digita direto;
+  // com mais de um (ou em outra moeda), abre a lista desses lançamentos.
+  function celulaReal(item: Item, tipo: TipoGrupo, mes: string, i: number, real: number | undefined, plano: number | undefined) {
+    const lancs = props.lancamentos.get(`${item.id}|${mes}`) ?? []
+    const simples = lancs.length === 0 || (lancs.length === 1 && (lancs[0].moeda ?? 'BRL') === 'BRL')
+    const rotulo = `Realizado de ${item.name} em ${MESES_CURTOS[i]}`
+    return (
+      <div className="flex flex-col items-end gap-0.5">
+        {simples ? (
+          <MoneyCommit
+            key={`${lancs[0]?.id ?? 'novo'}-${lancs[0]?.valor ?? ''}-${props.desfeito}`}
+            aria-label={rotulo}
+            title={lancs[0] ? `${lancs[0].descricao || 'Sem descrição'} · ${formatData(lancs[0].data)}` : 'Digite pra criar um lançamento'}
+            placeholder="—"
+            inicial={lancs[0] ? String(lancs[0].valor) : ''}
+            onCommit={(v) => props.onSalvarReal(item, tipo, mes, v)}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => props.onAbrirCelula(item, tipo, mes)}
+            aria-label={`${rotulo}: ${lancs.length} lançamentos`}
+            title="Ver e editar os lançamentos"
+            className="flex h-9 w-full items-center justify-end gap-1.5 rounded-lg border border-dashed border-input px-2.5 text-base tabular-nums hover:border-primary/40 hover:bg-muted/40 md:text-sm"
           >
-            de {fmtCurto(plano)}
-          </span>
+            <span className="text-[10px] text-muted-foreground">{lancs.length}×</span>
+            <span className="font-semibold">{fmt(real)}</span>
+          </button>
         )}
+        {dePlano(tipo, real, plano)}
       </div>
     )
   }
@@ -227,9 +266,7 @@ export function GradeAnual(props: {
                   onCommit={(v) => props.onSalvar(item.id, mes, v)}
                 />
               ) : (
-                <div className="flex h-9 items-center justify-end px-2.5 text-base md:text-sm">
-                  {celulaComparada(tipo, real[i], plano[i])}
-                </div>
+                celulaReal(item, tipo, mes, i, real[i], plano[i])
               )}
             </td>
           )
@@ -250,11 +287,7 @@ export function GradeAnual(props: {
         </td>
         {exibida.map((v, i) => (
           <td key={i} className={cn(COL_MES, LINHA, 'bg-muted py-2 text-right', destaque(i))}>
-            {modo === 'planejado' ? (
-              <span className="tabular-nums">{fmt(v)}</span>
-            ) : (
-              celulaComparada(tipo, real[i], plano[i], true)
-            )}
+            <span className={cn('tabular-nums', v === undefined && 'text-muted-foreground/60')}>{fmt(v)}</span>
           </td>
         ))}
         <td className={cn(LINHA, 'bg-muted px-3 py-2 text-right tabular-nums')}>{fmt(total(exibida))}</td>
@@ -487,11 +520,6 @@ export function GradeAnual(props: {
                   )}
                 >
                   {fmt(v)}
-                  {modo === 'comparar' && resumoPlano.saldo[i] !== undefined && (
-                    <span className="block text-[10px] font-normal text-muted-foreground">
-                      de {fmtCurto(resumoPlano.saldo[i]!)}
-                    </span>
-                  )}
                 </td>
               ))}
               <td

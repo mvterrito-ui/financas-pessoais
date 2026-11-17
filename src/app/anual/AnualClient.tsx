@@ -19,13 +19,13 @@ import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Button } from '@/components/ui/button'
 import { usePromptDialog } from '@/components/ui/prompt'
-import { formatBRL, valorEmBRL, type Moeda } from '@/server/fluxo/fluxo.calc'
+import { formatBRL, valorEmBRL, type Moeda, type Transaction } from '@/server/fluxo/fluxo.calc'
+import { dataNoMes } from '@/server/recorrencia/recorrencia.calc'
 import { useCotacao } from '@/lib/useRates'
 import { mesAtualBR } from '@/server/patrimonio/patrimonio.calc'
 import {
   chave,
   somarEmReal,
-  planejado,
   indexar,
   mesesDoAno,
   pctDaReceita,
@@ -46,6 +46,7 @@ import { GradeAnual, type ModoGrade } from './GradeAnual'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { GraficosAnual } from './GraficosAnual'
+import { LancamentosCelula } from './LancamentosCelula'
 
 const fmtPct = (p: number | null) =>
   p === null ? '' : `${p.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da receita`
@@ -130,21 +131,53 @@ export default function AnualClient() {
     previsto: SomaPorMes[]
     semCategoria: { moeda: string; valor: number; qtd: number }[]
   }>({ realizado: [], previsto: [], semCategoria: [] })
+  // Lançamentos do ano, pra editar o realizado direto na grade.
+  const [lancs, setLancs] = useState<Transaction[]>([])
+  const buscarAno = useCallback(
+    () =>
+      Promise.all([
+        api(`/api/anual/realizado?ano=${ano}`),
+        api(`/api/transaction?de=${ano}-01-01&ate=${ano}-12-31`) as Promise<Transaction[]>,
+      ]),
+    [api, ano],
+  )
+  const recarregarAno = useCallback(
+    () =>
+      buscarAno().then(([f, t]) => {
+        setDadosAno(f)
+        setLancs(t)
+      }),
+    [buscarAno],
+  )
   useEffect(() => {
     let vivo = true
-    api(`/api/anual/realizado?ano=${ano}`)
-      .then((f) => vivo && setDadosAno(f))
+    buscarAno()
+      .then(([f, t]) => {
+        if (!vivo) return
+        setDadosAno(f)
+        setLancs(t)
+      })
       .catch((e) => vivo && setErro((e as Error).message))
     return () => {
       vivo = false
     }
-  }, [api, ano])
+  }, [buscarAno])
+  const lancsPorCelula = useMemo(() => {
+    const m = new Map<string, Transaction[]>()
+    for (const t of lancs) {
+      if (!t.item_id) continue
+      const k = chave(t.item_id, `${t.data.slice(0, 7)}-01`)
+      m.set(k, [...(m.get(k) ?? []), t])
+    }
+    return m
+  }, [lancs])
 
   const emReal = useCallback((v: number, m: string) => valorEmBRL(v, m as Moeda, rates), [rates])
   const realizado = useMemo(() => somarEmReal(dadosAno.realizado, emReal), [dadosAno.realizado, emReal])
   const recorrente = useMemo(() => somarEmReal(dadosAno.previsto, emReal), [dadosAno.previsto, emReal])
-  // Planejado: o digitado na célula; sem ele, o das recorrências.
-  const plano = useMemo(() => planejado(valores, recorrente), [valores, recorrente])
+  // Planejado: só o que foi digitado. As recorrências aparecem apenas como
+  // sugestão em cinza no modo Planejado.
+  const plano = valores
   const semCategoria = dadosAno.semCategoria.reduce(
     (s, x) => ({ valor: s.valor + emReal(x.valor, x.moeda), qtd: s.qtd + x.qtd }),
     { valor: 0, qtd: 0 },
@@ -194,6 +227,50 @@ export default function AnualClient() {
 
   const salvarCelula = (itemId: string, mes: string, txt: string) =>
     gravarValores(itemId, [{ mes, valor: txt === '' ? null : Number(txt) || 0 }])
+
+  // ---------------- realizado editado na grade (grava nos lançamentos)
+  const [celula, setCelula] = useState<{ item: Item; tipo: TipoGrupo; mes: string } | null>(null)
+  // Muda quando a exclusão é cancelada: os campos voltam pro valor salvo.
+  const [desfeito, setDesfeito] = useState(0)
+  const tipoLanc = (tipo: TipoGrupo) => (tipo === 'receita' ? 'entrada' : 'saida')
+
+  const novoLancamento = (item: Item, tipo: TipoGrupo, mes: string, valor: number, dia: number) =>
+    acao(
+      () =>
+        enviar('/api/transaction', 'POST', {
+          tipo: tipoLanc(tipo),
+          valor,
+          moeda: 'BRL',
+          data: dataNoMes({ dia }, mes),
+          descricao: item.name,
+          item_id: item.id,
+        }),
+      recarregarAno,
+    )
+
+  const valorLancamento = (t: Transaction, txt: string) => {
+    if (!(Number(txt) > 0)) return removerLancamento(t)
+    acao(() => enviar(`/api/transaction/${t.id}`, 'PATCH', { valor: Number(txt) }), recarregarAno)
+  }
+
+  function removerLancamento(t: Transaction) {
+    if (!confirm(`Excluir o lançamento "${t.descricao || 'sem descrição'}" de ${t.data.split('-').reverse().join('/')}?`)) {
+      setDesfeito((n) => n + 1)
+      return
+    }
+    acao(() => enviar(`/api/transaction/${t.id}`, 'DELETE'), recarregarAno)
+  }
+
+  // Célula com 0 ou 1 lançamento em real: o valor digitado vai direto pro lançamento.
+  const salvarReal = (item: Item, tipo: TipoGrupo, mes: string, txt: string) => {
+    const atual = lancsPorCelula.get(chave(item.id, mes)) ?? []
+    if (atual.length === 1) return valorLancamento(atual[0], txt)
+    if (atual.length === 0 && Number(txt) > 0) {
+      const hoje = new Date()
+      const dia = mes.slice(0, 7) === mesAtualBR().slice(0, 7) ? hoje.getDate() : 1
+      novoLancamento(item, tipo, mes, Number(txt), dia)
+    }
+  }
 
   const repetir = (item: Item) => {
     const meses = mesesDoAno(ano)
@@ -491,10 +568,10 @@ export default function AnualClient() {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              {modo === 'comparar' && 'Realizado em cima, planejado embaixo (vermelho quando foge do plano).'}
-              {modo === 'realizado' && 'Soma dos lançamentos de cada categoria.'}
-              {modo === 'planejado' &&
-                'Digite o planejado. Sem valor digitado, vale o das recorrências (em cinza).'}
+              {modo === 'comparar' &&
+                'Edite o realizado na célula: o valor vai pros lançamentos. Embaixo, o planejado digitado.'}
+              {modo === 'realizado' && 'Edite o valor na célula e ele vai pros lançamentos.'}
+              {modo === 'planejado' && 'Digite o planejado. Em cinza, o que as recorrências preveem.'}
             </p>
           </div>
 
@@ -524,7 +601,11 @@ export default function AnualClient() {
             recorrente={recorrente}
             resumoReal={rReal}
             resumoPlano={rPlano}
+            lancamentos={lancsPorCelula}
+            desfeito={desfeito}
             onSalvar={salvarCelula}
+            onSalvarReal={salvarReal}
+            onAbrirCelula={(item, tipo, mes) => setCelula({ item, tipo, mes })}
             onRepetir={repetir}
             onEditarItem={editarItem}
             onOcultarItem={ocultarItem}
@@ -538,6 +619,19 @@ export default function AnualClient() {
           />
 
           <GraficosAnual grupos={grupos} itens={itens} valores={realizado} resumo={rReal} />
+
+          {celula && (
+            <LancamentosCelula
+              titulo={celula.item.name}
+              mes={celula.mes}
+              lancamentos={lancsPorCelula.get(chave(celula.item.id, celula.mes)) ?? []}
+              desfeito={desfeito}
+              onFechar={() => setCelula(null)}
+              onValor={valorLancamento}
+              onRemover={removerLancamento}
+              onNovo={(valor, dia) => novoLancamento(celula.item, celula.tipo, celula.mes, valor, dia)}
+            />
+          )}
 
         </>
       )}

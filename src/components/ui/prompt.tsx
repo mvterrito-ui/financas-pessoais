@@ -4,7 +4,8 @@ import { createContext, useContext, useRef, useState, type ReactNode } from 'rea
 import { Modal } from './modal'
 import { Input } from './input'
 import { MoneyInput } from './money-input'
-import { NumberField } from './number-field'
+import { DiaField, NumberField } from './number-field'
+import { MesCampo } from './month-picker'
 import { Select } from './select'
 import { Label } from './label'
 import { Button } from './button'
@@ -16,17 +17,22 @@ import { Button } from './button'
 // type 'money'  -> MoneyInput (máscara 1.234,56; use `prefixo` "R$"/"US$")
 // type 'number' -> NumberField (vírgula decimal; `casas`, `sufixo` "%")
 // type 'select' -> Select com `options`
+// type 'dia'    -> dia do mês (1 a 31)
+// type 'mes'    -> seletor de mês ('AAAA-MM'; `min`; `vazio` permite ficar sem mês)
+// type 'date'   -> calendário de data ('AAAA-MM-DD')
 // `valor` = valor inicial (ex.: renomear). Números saem com PONTO decimal.
 type Field = {
   name: string
   label: string
-  type?: 'text' | 'number' | 'money' | 'select'
+  type?: 'text' | 'number' | 'money' | 'select' | 'dia' | 'mes' | 'date'
   options?: { value: string; label: string }[]
   valor?: string
   placeholder?: string
   prefixo?: string
   sufixo?: string
   casas?: number
+  min?: string
+  vazio?: string
 }
 type Config = { title: string; fields: Field[]; submitLabel?: string }
 type Valores = Record<string, string>
@@ -91,6 +97,30 @@ export function PromptProvider({ children }: { children: ReactNode }) {
                     placeholder={f.placeholder ?? '0,00'}
                     value={vals[f.name] ?? ''}
                     onValueChange={(val) => setVals((v) => ({ ...v, [f.name]: val }))}
+                    autoFocus={i === 0}
+                  />
+                ) : f.type === 'dia' ? (
+                  <DiaField
+                    id={`prompt-${f.name}`}
+                    value={vals[f.name] ?? ''}
+                    onValueChange={(val) => setVals((v) => ({ ...v, [f.name]: val }))}
+                    autoFocus={i === 0}
+                  />
+                ) : f.type === 'mes' ? (
+                  <MesCampo
+                    id={`prompt-${f.name}`}
+                    value={vals[f.name] ?? ''}
+                    min={f.min}
+                    vazio={f.vazio}
+                    onChange={(val) => setVals((v) => ({ ...v, [f.name]: val }))}
+                  />
+                ) : f.type === 'date' ? (
+                  <Input
+                    id={`prompt-${f.name}`}
+                    type="date"
+                    min={f.min}
+                    value={vals[f.name] ?? ''}
+                    onChange={(e) => setVals((v) => ({ ...v, [f.name]: e.target.value }))}
                     autoFocus={i === 0}
                   />
                 ) : f.type === 'number' ? (

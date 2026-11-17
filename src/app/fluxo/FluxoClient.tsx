@@ -273,7 +273,7 @@ export default function FluxoClient() {
         submitLabel: 'Confirmar',
         fields: [
           { name: 'valor', label: 'Valor deste mês', type: 'money', prefixo: simboloMoeda(p.recorrencia.moeda), valor: String(p.valor) },
-          { name: 'dia', label: 'Dia', type: 'number', casas: 0, valor: p.data.slice(8, 10) },
+          { name: 'dia', label: 'Dia', type: 'dia', valor: String(Number(p.data.slice(8, 10))) },
         ],
       })
       if (!v) return

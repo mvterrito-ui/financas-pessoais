@@ -29,7 +29,8 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Modal } from '@/components/ui/modal'
 import { MoneyInput } from '@/components/ui/money-input'
-import { NumberField } from '@/components/ui/number-field'
+import { DiaField } from '@/components/ui/number-field'
+import { MesCampo } from '@/components/ui/month-picker'
 import { MoedaToggle, simboloMoeda, type MoedaCodigo } from '@/components/ui/moeda-toggle'
 import { usePromptDialog } from '@/components/ui/prompt'
 import { useCotacao } from '@/lib/useRates'
@@ -58,15 +59,8 @@ type Filtro = 'ativas' | 'pausadas' | 'finalizadas' | 'todas'
 
 const fmtMoeda = (v: number, m: MoedaCodigo) => v.toLocaleString('pt-BR', { style: 'currency', currency: m })
 
-/** Meses (AAAA-MM-01) a partir de `inicio`, pra escolher num select. */
-function opcoesDeMes(inicio: string, quantos: number, antes = 0) {
-  const [a, m] = inicio.split('-').map(Number)
-  return Array.from({ length: quantos + antes }, (_, i) => {
-    const d = new Date(Date.UTC(a, m - 1 - antes + i, 1))
-    const v = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`
-    return { value: v, label: rotuloMes(v.slice(0, 7)) }
-  })
-}
+// O seletor de mês trabalha com 'AAAA-MM'; a API com 'AAAA-MM-01'.
+const paraApi = (ym: string) => `${ym}-01`
 
 type Form = {
   tipo: 'entrada' | 'saida'
@@ -240,25 +234,21 @@ export default function RecorrenciasClient() {
       title: `Pausar ${r.descricao}`,
       submitLabel: 'Pausar',
       fields: [
-        { name: 'mes', label: 'A partir de', type: 'select', options: opcoesDeMes(mesAtual, 13) },
-        {
-          name: 'ate',
-          label: 'Volta em',
-          type: 'select',
-          options: [{ value: '', label: 'Quando eu retomar' }, ...opcoesDeMes(mesAtual, 24)],
-        },
+        { name: 'mes', label: 'A partir de', type: 'mes', min: mesAtual.slice(0, 7), valor: mesAtual.slice(0, 7) },
+        { name: 'ate', label: 'Volta em', type: 'mes', min: mesAtual.slice(0, 7), vazio: 'Quando eu retomar' },
       ],
     })
-    if (!v) return
+    if (!v?.mes) return
+    const mes = paraApi(v.mes)
     // "Volta em X" = pausada até o mês ANTERIOR a X.
     let ate: string | null = null
     if (v.ate) {
       const [a, m] = v.ate.split('-').map(Number)
       const d = new Date(Date.UTC(a, m - 2, 1))
       ate = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`
-      if (ate < v.mes) return setErro('A volta tem que ser depois do início da pausa.')
+      if (ate < mes) return setErro('A volta tem que ser depois do início da pausa.')
     }
-    acaoEm(r, { acao: 'pausar', mes: v.mes, ate })
+    acaoEm(r, { acao: 'pausar', mes, ate })
   }
 
   function retomar(r: Recorrencia) {
@@ -274,7 +264,7 @@ export default function RecorrenciasClient() {
       title: `Novo valor · ${r.descricao}`,
       submitLabel: 'Salvar',
       fields: [
-        { name: 'mes', label: 'A partir de', type: 'select', options: opcoesDeMes(mesAtual, 13, 3), valor: mesAtual },
+        { name: 'mes', label: 'A partir de', type: 'mes', min: r.inicio.slice(0, 7), valor: mesAtual.slice(0, 7) },
         {
           name: 'valor',
           label: 'Novo valor',
@@ -284,8 +274,8 @@ export default function RecorrenciasClient() {
         },
       ],
     })
-    if (!v?.valor || !(Number(v.valor) > 0)) return
-    acaoEm(r, { acao: 'reajustar', mes: v.mes, valor: Number(v.valor) })
+    if (!v?.mes || !v.valor || !(Number(v.valor) > 0)) return
+    acaoEm(r, { acao: 'reajustar', mes: paraApi(v.mes), valor: Number(v.valor) })
   }
 
   async function finalizar(r: Recorrencia) {
@@ -296,14 +286,14 @@ export default function RecorrenciasClient() {
         {
           name: 'mes',
           label: 'Último mês em que acontece',
-          type: 'select',
-          options: opcoesDeMes(mesAtual, 24, 6).filter((o) => o.value >= r.inicio.slice(0, 10)),
-          valor: mesAtual,
+          type: 'mes',
+          min: r.inicio.slice(0, 7),
+          valor: (mesAtual < r.inicio.slice(0, 10) ? r.inicio : mesAtual).slice(0, 7),
         },
       ],
     })
     if (!v?.mes) return
-    acaoEm(r, { acao: 'finalizar', mes: v.mes })
+    acaoEm(r, { acao: 'finalizar', mes: paraApi(v.mes) })
   }
 
   function remover(r: Recorrencia) {
@@ -591,33 +581,36 @@ export default function RecorrenciasClient() {
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="rec-dia">Dia</Label>
-                <NumberField id="rec-dia" casas={0} value={form.dia} onValueChange={(v) => setForm({ ...form, dia: v })} />
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rec-dia">Dia do mês</Label>
+              <DiaField
+                id="rec-dia"
+                className="w-28"
+                value={form.dia}
+                onValueChange={(v) => setForm({ ...form, dia: v })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 items-start gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="rec-inicio">Começa em</Label>
-                <Input
+                <MesCampo
                   id="rec-inicio"
-                  type="month"
-                  required
                   value={form.inicio}
-                  onChange={(e) => setForm({ ...form, inicio: e.target.value })}
+                  onChange={(v) => setForm({ ...form, inicio: v, fim: form.fim && form.fim < v ? '' : form.fim })}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="rec-fim">Último mês</Label>
-                <Input
+                <MesCampo
                   id="rec-fim"
-                  type="month"
                   min={form.inicio}
+                  vazio="Sem data pra acabar"
                   value={form.fim}
-                  onChange={(e) => setForm({ ...form, fim: e.target.value })}
+                  onChange={(v) => setForm({ ...form, fim: v })}
                 />
               </div>
             </div>
-            <p className="-mt-2 text-xs text-muted-foreground">Último mês vazio = sem data pra acabar.</p>
 
             {erro && <p className="text-sm text-destructive">{erro}</p>}
 
